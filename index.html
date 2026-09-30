@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Armenia AI Travel MVP v0.3</title>
+    <meta name="description" content="An AI-first Armenia trip operating system for planning, managing, navigating, and booking a trip." />
+    <link rel="stylesheet" href="./styles.css?v=trip-flow-20260928" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <button class="icon-button" id="resetDemo" type="button" aria-label="Reset demo data">↺</button>
+        <div>
+          <p class="kicker">Armenia AI</p>
+          <h1 id="screenTitle">Today</h1>
+        </div>
+        <button class="icon-button ai-mark" id="openConcierge" type="button" aria-label="Open AI concierge">AI</button>
+      </header>
+
+      <main>
+        <section class="screen active" id="homeScreen" data-title="Today">
+          <section class="journey-cockpit" aria-label="Today trip cockpit">
+            <img class="journey-photo" id="todayHeroImage" alt="Next Armenia trip stop" />
+            <div class="journey-shade"></div>
+            <div class="journey-stone-mark" aria-hidden="true"></div>
+
+            <div class="journey-topbar">
+              <div>
+                <p class="journey-brand">Armenia AI</p>
+                <p class="journey-subline">Your trip lives here</p>
+              </div>
+              <button class="journey-ai-button" id="openConciergeHome" type="button" aria-label="Open AI concierge">AI</button>
+            </div>
+
+            <div class="journey-headline">
+              <h2>Day <span id="todayDayNumber">2</span> of <span id="todayTotalDays">5</span></h2>
+              <p id="todayDateTitle">Mountains. Monasteries. Living culture.</p>
+            </div>
+
+            <div class="journey-next">
+              <p>Next</p>
+              <h3><span id="todayNextStop">Garni</span> · <span id="todayTravelTime">42 min</span></h3>
+              <small>Ancient history. Epic views.</small>
+              <button class="journey-next-button detail-button" id="todayNextDetails" type="button" data-id="garni-temple" aria-label="Open next stop details">›</button>
+            </div>
+
+            <div class="journey-route" aria-label="Today's connected route">
+              <svg class="journey-route-line" viewBox="0 0 320 560" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M54 28 C18 92 104 118 78 184 C51 253 160 243 142 324 C128 387 238 387 218 468 C210 499 242 523 286 540" />
+              </svg>
+              <div class="today-timeline" id="todayTimeline"></div>
+            </div>
+
+            <div class="journey-context">
+              <div id="todayFoodCard"></div>
+              <div id="todayDealCard"></div>
+            </div>
+
+            <section class="journey-ai-actions" aria-label="AI quick actions">
+              <div class="day-actions home-actions" id="homeAiActions">
+                <button type="button" data-action="more-nature" data-day="1"><span>✦</span>Surprise me</button>
+                <button type="button" data-action="cheaper" data-day="1"><span>◎</span>Spend less</button>
+                <button type="button" data-action="less-driving" data-day="1"><span>◇</span>More local</button>
+                <button type="button" data-action="change" data-day="1"><span>☷</span>Change today</button>
+              </div>
+            </section>
+
+            <div class="route-preview" id="todayRoutePreview"></div>
+          </section>
+
+          <section class="nearby-strip-section">
+            <div class="section-heading flush">
+              <h2>Nearby for this trip</h2>
+              <span id="placeCount"></span>
+            </div>
+            <div class="quick-actions" aria-label="Quick filters">
+              <button type="button" data-filter="all" class="chip active">Route</button>
+              <button type="button" data-filter="attractions" class="chip">Places</button>
+              <button type="button" data-filter="restaurants-cafes" class="chip">Food</button>
+              <button type="button" data-filter="hotels" class="chip">Hotels</button>
+              <button type="button" data-filter="tours" class="chip">Tours</button>
+              <button type="button" data-filter="car-rentals" class="chip">Cars</button>
+              <button type="button" data-filter="esim" class="chip">eSIM</button>
+            </div>
+            <div class="card-list nearby-list" id="placeList"></div>
+          </section>
+        </section>
+
+        <section class="screen" id="plannerScreen" data-title="Planner">
+          <section class="trip-flow-shell" id="tripFlow" aria-label="Create Armenia Trip">
+            <img class="flow-photo" src="./assets/garni-temple-hero.jpg" alt="Armenia trip landscape" />
+            <div class="flow-shade"></div>
+            <div class="flow-topline">
+              <button class="flow-back" id="flowBack" type="button" aria-label="Go back">‹</button>
+              <div class="flow-progress" aria-hidden="true"><span id="flowProgress"></span></div>
+              <span class="flow-step-count" id="flowStepCount">1/9</span>
+            </div>
+
+            <article class="flow-step active" data-flow-step="intro">
+              <p class="flow-kicker">Armenia AI Planner</p>
+              <h2>Create Armenia Trip</h2>
+              <p class="flow-copy">A few small choices. Then AI assembles your Armenia days, route and useful trip offers.</p>
+              <div class="flow-orbit">
+                <span>Yerevan</span>
+                <span>Garni</span>
+                <span>Sevan</span>
+                <span>Dilijan</span>
+                <svg viewBox="0 0 280 220" aria-hidden="true">
+                  <path d="M35 174 C82 64 128 178 170 76 C197 10 238 80 250 35" />
+                </svg>
+              </div>
+              <button class="flow-cta flow-next" type="button">Start building</button>
+            </article>
+
+            <article class="flow-step" data-flow-step="style">
+              <p class="flow-kicker">Travel style</p>
+              <h2>What should the trip feel like?</h2>
+              <div class="flow-choice-grid">
+                <button class="flow-choice active" type="button" data-flow-field="style" data-flow-value="classic">
+                  <strong>Classic first trip</strong><span>Icons, city life, countryside highlights</span>
+                </button>
+                <button class="flow-choice" type="button" data-flow-field="style" data-flow-value="food-wine">
+                  <strong>Food and wine</strong><span>Restaurants, cafes, Areni-style route energy</span>
+                </button>
+                <button class="flow-choice" type="button" data-flow-field="style" data-flow-value="nature">
+                  <strong>Nature escape</strong><span>Lakes, forests, soft hiking, fresh air</span>
+                </button>
+                <button class="flow-choice" type="button" data-flow-field="style" data-flow-value="culture">
+                  <strong>Deep culture</strong><span>Monasteries, museums, architecture</span>
+                </button>
+              </div>
+            </article>
+
+            <article class="flow-step" data-flow-step="length">
+              <p class="flow-kicker">Dates and length</p>
+              <h2>How many Armenia days?</h2>
+              <label class="flow-date">
+                <span>Start date</span>
+                <input id="flowStartDate" type="date" />
+              </label>
+              <div class="flow-day-track" aria-label="Trip duration">
+                <button class="flow-day" type="button" data-flow-days="1">1</button>
+                <button class="flow-day" type="button" data-flow-days="2">2</button>
+                <button class="flow-day active" type="button" data-flow-days="3">3</button>
+                <button class="flow-day" type="button" data-flow-days="4">4</button>
+                <button class="flow-day" type="button" data-flow-days="5">5</button>
+                <button class="flow-day" type="button" data-flow-days="6">6</button>
+                <button class="flow-day" type="button" data-flow-days="7">7</button>
+              </div>
+              <p class="flow-note" id="flowLengthNote">3 days gives you Yerevan plus one countryside route.</p>
+              <button class="flow-cta flow-next" type="button">Continue</button>
+            </article>
+
+            <article class="flow-step" data-flow-step="anchors">
+              <p class="flow-kicker">Trip anchors</p>
+              <h2>Choose destination nodes</h2>
+              <p class="flow-copy">Pick the places the route should bend around. AI fills the day-by-day structure.</p>
+              <div class="anchor-map" id="anchorMap">
+                <button class="anchor-node selected" type="button" data-anchor-id="garni-temple"><span>Garni</span></button>
+                <button class="anchor-node selected" type="button" data-anchor-id="geghard-monastery"><span>Geghard</span></button>
+                <button class="anchor-node" type="button" data-anchor-id="sevanavank-lake-sevan"><span>Sevan</span></button>
+                <button class="anchor-node" type="button" data-anchor-id="dilijan-national-park"><span>Dilijan</span></button>
+                <button class="anchor-node" type="button" data-anchor-id="khor-virap"><span>Khor Virap</span></button>
+                <button class="anchor-node" type="button" data-anchor-id="noravank"><span>Noravank</span></button>
+                <button class="anchor-node" type="button" data-anchor-id="tatev-monastery"><span>Tatev</span></button>
+                <button class="anchor-node" type="button" data-anchor-id="lavash-restaurant"><span>Food</span></button>
+                <svg viewBox="0 0 340 430" aria-hidden="true">
+                  <path d="M54 60 C120 40 126 150 190 132 C268 110 288 184 214 222 C138 262 216 340 290 368" />
+                </svg>
+              </div>
+              <button class="flow-cta flow-next" type="button">Use these anchors</button>
+            </article>
+
+            <article class="flow-step" data-flow-step="budget">
+              <p class="flow-kicker">Budget</p>
+              <h2>What spend level feels right?</h2>
+              <div class="flow-choice-grid compact">
+                <button class="flow-choice" type="button" data-flow-field="budget" data-flow-value="budget"><strong>Smart value</strong><span>Lower spend, fewer paid extras</span></button>
+                <button class="flow-choice active" type="button" data-flow-field="budget" data-flow-value="mid"><strong>Comfortable</strong><span>Balanced meals, tours and stays</span></button>
+                <button class="flow-choice" type="button" data-flow-field="budget" data-flow-value="premium"><strong>Premium</strong><span>Best hotels, private routes, finer dining</span></button>
+              </div>
+            </article>
+
+            <article class="flow-step" data-flow-step="transport">
+              <p class="flow-kicker">Transport</p>
+              <h2>How will you move?</h2>
+              <div class="flow-choice-grid compact">
+                <button class="flow-choice active" type="button" data-flow-field="transport" data-flow-value="no-car"><strong>No car</strong><span>AI favors walkable days, tours and drivers</span></button>
+                <button class="flow-choice" type="button" data-flow-field="transport" data-flow-value="car"><strong>Own or rental car</strong><span>More flexible countryside routing</span></button>
+              </div>
+            </article>
+
+            <article class="flow-step" data-flow-step="pace">
+              <p class="flow-kicker">Pace</p>
+              <h2>How full should each day be?</h2>
+              <div class="pace-rail">
+                <button class="pace-option" type="button" data-flow-field="pace" data-flow-value="relaxed"><strong>Relaxed</strong><span>Slower mornings</span></button>
+                <button class="pace-option active" type="button" data-flow-field="pace" data-flow-value="balanced"><strong>Balanced</strong><span>Enough, not rushed</span></button>
+                <button class="pace-option" type="button" data-flow-field="pace" data-flow-value="intensive"><strong>Intensive</strong><span>Maximum discovery</span></button>
+              </div>
+            </article>
+
+            <article class="flow-step" data-flow-step="ask">
+              <p class="flow-kicker">AI route build</p>
+              <h2>Build my Armenia days?</h2>
+              <p class="flow-copy">AI will suggest the structure. You confirm, edit or keep it loose.</p>
+              <div class="flow-dual-actions">
+                <button class="flow-cta" type="button" data-flow-build="daily">Build my Armenia days</button>
+                <button class="flow-secondary" type="button" data-flow-build="flexible">Keep it flexible</button>
+              </div>
+            </article>
+
+            <article class="flow-step" data-flow-step="generating">
+              <p class="flow-kicker">Assembling route</p>
+              <h2>Connecting your Armenia</h2>
+              <div class="assembly-map" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+                <svg viewBox="0 0 320 360">
+                  <path d="M42 302 C95 168 128 270 165 152 C197 48 252 132 282 54" />
+                </svg>
+              </div>
+              <p class="flow-note">Balancing travel time, food stops, route realism and your anchors.</p>
+            </article>
+
+            <article class="flow-step flow-review" data-flow-step="review">
+              <p class="flow-kicker">Review route</p>
+              <h2>Your Armenia route is ready</h2>
+              <p class="flow-copy">Confirm the generated route, then enter the live Today cockpit.</p>
+              <div class="trip-overview flow-overview" id="tripOverview"></div>
+              <div class="section-heading flow-route-heading">
+                <h2>Suggested route</h2>
+                <button class="text-button" id="saveWholeTrip" type="button">Save again</button>
+              </div>
+              <div class="day-list flow-day-list" id="planList"></div>
+              <div class="flow-sticky-review">
+                <button class="flow-secondary" type="button" data-flow-edit>Adjust choices</button>
+                <button class="flow-cta" type="button" data-flow-enter-home>Enter Today cockpit</button>
+              </div>
+            </article>
+
+            <form id="plannerForm" class="planner-form legacy-planner-form" aria-hidden="true">
+              <label>
+                <span>Trip duration</span>
+                <select id="tripDays">
+                  <option value="1">1 day</option>
+                  <option value="2">2 days</option>
+                  <option value="3" selected>3 days</option>
+                  <option value="4">4 days</option>
+                  <option value="5">5 days</option>
+                  <option value="6">6 days</option>
+                  <option value="7">7 days</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Budget</span>
+                <select id="tripBudget">
+                  <option value="budget">Budget</option>
+                  <option value="mid" selected>Mid-range</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Group</span>
+                <select id="tripGroup">
+                  <option value="solo">Solo</option>
+                  <option value="couple" selected>Couple</option>
+                  <option value="friends">Friends</option>
+                  <option value="family">Family</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Transport</span>
+                <select id="tripTransport">
+                  <option value="no-car" selected>No car</option>
+                  <option value="car">Rental car</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Pace</span>
+                <select id="tripPace">
+                  <option value="relaxed">Relaxed</option>
+                  <option value="balanced" selected>Balanced</option>
+                  <option value="intensive">Intensive</option>
+                </select>
+              </label>
+
+              <fieldset class="interest-picker">
+                <legend>Interests</legend>
+                <label><input type="checkbox" value="food" checked /> <span>🍽 Food</span></label>
+                <label><input type="checkbox" value="nature" checked /> <span>🌿 Nature</span></label>
+                <label><input type="checkbox" value="history" checked /> <span>⛪ History</span></label>
+                <label><input type="checkbox" value="wine" /> <span>🍷 Wine</span></label>
+                <label><input type="checkbox" value="hiking" /> <span>🥾 Hiking</span></label>
+                <label><input type="checkbox" value="nightlife" /> <span>🌙 Nightlife</span></label>
+              </fieldset>
+
+              <div class="ai-preview">
+                <strong>✦</strong>
+                <div>
+                  <h3>I’ll balance Yerevan, countryside, food, and driving time.</h3>
+                  <p>Iconic places, realistic daily plans, best routes, curated stays and local experiences.</p>
+                </div>
+              </div>
+
+              <button class="primary-button" type="submit">Build my Armenia trip →</button>
+            </form>
+          </section>
+        </section>
+
+        <section class="screen" id="tripScreen" data-title="My Trip">
+          <div class="trip-hero panel">
+            <div>
+              <p class="kicker">Your Armenia route</p>
+              <h2><span id="savedCount">0</span> saved stops</h2>
+              <p class="muted">Plan, manage, adjust, discover and book from one calm trip view.</p>
+            </div>
+            <button class="secondary-button" id="clearTrip" type="button">Clear</button>
+          </div>
+          <div class="trip-overview compact" id="myTripOverview"></div>
+          <div class="card-list" id="savedList"></div>
+          <div class="empty-state" id="emptyTrip">
+            <h2>No saved stops yet</h2>
+            <p>Add places from Today, Planner, Map, or Deals.</p>
+          </div>
+        </section>
+
+        <section class="screen map-screen" id="mapScreen" data-title="Map">
+          <div class="map-search">
+            <span>⌕</span>
+            <p>Search along your route</p>
+            <button class="icon-button" type="button">⌘</button>
+          </div>
+          <div class="map-card">
+            <div class="map-art" id="mapArt" aria-label="Sample Armenia map">
+              <div class="route-line"></div>
+            </div>
+          </div>
+          <div class="map-bottom-sheet" id="mapDetail">
+            <p class="kicker">Route map</p>
+            <h2>Tap a pin</h2>
+            <p class="muted">Saved trip stops use wine pins; discovery places stay muted.</p>
+          </div>
+        </section>
+
+        <section class="screen" id="dealsScreen" data-title="Deals">
+          <div class="deals-hero panel">
+            <p class="kicker">Partner marketplace</p>
+            <h2>Trip deals for you</h2>
+            <p class="muted">Handpicked hotels, transfers, tours, car rental and eSIM offers for your Armenia trip.</p>
+            <div class="deal-tabs">
+              <span>Hotels</span>
+              <span>Rent car</span>
+              <span>Transfers</span>
+              <span>Tours</span>
+              <span>eSIM</span>
+            </div>
+          </div>
+          <div class="card-list" id="dealList"></div>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Main navigation">
+        <button class="nav-item active" type="button" data-screen="homeScreen"><span>⌂</span>Today</button>
+        <button class="nav-item" type="button" data-screen="plannerScreen"><span>▣</span>Planner</button>
+        <button class="nav-item" type="button" data-screen="tripScreen"><span>▤</span>My Trip</button>
+        <button class="nav-item" type="button" data-screen="mapScreen"><span>⌖</span>Map</button>
+        <button class="nav-item" type="button" data-screen="dealsScreen"><span>◇</span>Deals</button>
+      </nav>
+    </div>
+
+    <dialog id="conciergeDialog" class="dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Close">×</button>
+      </form>
+      <div class="dialog-body">
+        <p class="kicker">AI concierge</p>
+        <h2>Ask a sample travel question</h2>
+        <div class="chat-log" id="chatLog"></div>
+        <form id="chatForm" class="chat-form">
+          <input id="chatInput" type="text" placeholder="Try: rainy day, kids, wine, driver..." />
+          <button type="submit">Send</button>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog id="entityDialog" class="dialog entity-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Close">×</button>
+      </form>
+      <div class="dialog-body" id="entityDetail"></div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js?v=trip-flow-20260928"></script>
+  </body>
+</html>
