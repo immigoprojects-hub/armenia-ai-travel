@@ -5,7 +5,7 @@ const armeniaEntities = [
     category: "attractions",
     cityRegion: "Yerevan",
     shortDescription: "Open-air stairway, modern art, city views, and cafes near the Cafesjian Center.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Yerevan_Cascade_2019.jpg/900px-Yerevan_Cascade_2019.jpg",
+    image: "./assets/cascade-complex-yerevan.jpg",
     rating: null,
     reviewCount: null,
     coordinates: { lat: 40.1911, lng: 44.5151 },
@@ -22,7 +22,7 @@ const armeniaEntities = [
     category: "attractions",
     cityRegion: "Yerevan",
     shortDescription: "Central square with pink tuff architecture, museums, fountains, and evening walks.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Republic_Square%2C_Yerevan.jpg/900px-Republic_Square%2C_Yerevan.jpg",
+    image: "./assets/republic-square-yerevan.jpg",
     rating: null,
     reviewCount: null,
     coordinates: { lat: 40.1776, lng: 44.5126 },
@@ -39,7 +39,7 @@ const armeniaEntities = [
     category: "attractions",
     cityRegion: "Yerevan",
     shortDescription: "Museum and research institute of ancient manuscripts, one of Yerevan's signature cultural stops.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Matenadaran_Yerevan.jpg/900px-Matenadaran_Yerevan.jpg",
+    image: "./assets/matenadaran-yerevan.jpg",
     rating: null,
     reviewCount: null,
     coordinates: { lat: 40.192, lng: 44.5206 },
@@ -73,7 +73,7 @@ const armeniaEntities = [
     category: "attractions",
     cityRegion: "Kotayk",
     shortDescription: "UNESCO-listed monastery partly carved into the rock, set inside a dramatic gorge.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Geghard_Monastery_Armenia.jpg/900px-Geghard_Monastery_Armenia.jpg",
+    image: "./assets/geghard-monastery.jpg",
     rating: null,
     reviewCount: null,
     coordinates: { lat: 40.1405, lng: 44.8186 },
@@ -90,7 +90,7 @@ const armeniaEntities = [
     category: "attractions",
     cityRegion: "Ararat",
     shortDescription: "Famous monastery near the Turkish border with classic Mount Ararat views.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Khor_Virap_monastery_with_Mount_Ararat.jpg/900px-Khor_Virap_monastery_with_Mount_Ararat.jpg",
+    image: "./assets/khor-virap-monastery.jpg",
     rating: null,
     reviewCount: null,
     coordinates: { lat: 39.8786, lng: 44.5761 },
@@ -107,7 +107,7 @@ const armeniaEntities = [
     category: "attractions",
     cityRegion: "Vayots Dzor",
     shortDescription: "Red-rock canyon monastery, often combined with Areni wineries and Khor Virap.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Noravank_Monastery_2014.jpg/900px-Noravank_Monastery_2014.jpg",
+    image: "./assets/noravank-monastery.jpg",
     rating: null,
     reviewCount: null,
     coordinates: { lat: 39.6847, lng: 45.2336 },
@@ -1239,30 +1239,65 @@ function renderEntities() {
 function itineraryDayTemplate(day, index) {
   const leadEntity = getEntityById(day.stops[0]) || getEntityById("cascade-complex");
   const stops = day.stops.map(getEntityById).filter(Boolean);
+  const unresolved = dayContextDeals(day);
+  const nextDrive = routeTravelText(day);
+  const bookingLabel = unresolved.length ? `${unresolved.length} trip item${unresolved.length > 1 ? "s" : ""} to confirm` : "No bookings needed";
   return `
-    <article class="itinerary-visual-card">
-      <button class="image-button detail-button" type="button" data-id="${leadEntity.id}" aria-label="Open ${leadEntity.name} details">
-        <img src="${entityImage(leadEntity)}" alt="${escapeHtml(leadEntity.name)}" />
-        <span class="photo-badge">Day ${index + 1} · ${day.region}</span>
-      </button>
-      <div class="card-body">
-        <div class="day-card-title">
+    <article class="journey-chapter ${index === activeDayIndex() ? "is-current" : ""}">
+      <div class="chapter-rail" aria-hidden="true">
+        <span>${index + 1}</span>
+      </div>
+      <div class="chapter-main">
+        <button class="chapter-hero detail-button" type="button" data-id="${leadEntity.id}" aria-label="Open ${leadEntity.name} details">
+          <img src="${entityImage(leadEntity)}" alt="${escapeHtml(leadEntity.name)}" ${imageFallbackAttr(leadEntity, "hero")} />
+          <span class="chapter-status">${index === activeDayIndex() ? "Today" : `Day ${index + 1}`}</span>
+          <span class="chapter-region">${day.region}</span>
+        </button>
+
+        <div class="chapter-head">
           <div>
-            <p class="kicker">Day ${index + 1}</p>
+            <p class="trip-kicker">Day ${index + 1} / ${state.plan.length || 3}</p>
             <h3>${day.title}</h3>
           </div>
-          <strong>$${day.estimatedCost}</strong>
+          <div class="spend-pill">
+            <small>Est. spend</small>
+            <strong>$${day.estimatedCost}</strong>
+          </div>
         </div>
-        <p class="muted">${day.region} · ${routeTravelText(day)} · ${day.transportNote}</p>
-        <div class="mini-route-card">${routePreviewTemplate(day)}</div>
-        <div class="compact-timeline">
-          ${stops.slice(0, 4).map((entity, stopIndex) => `
-            <button class="timeline-row detail-button" type="button" data-id="${entity.id}">
-              <span class="time">${stopTime(stopIndex)}</span>
-              <span class="timeline-dot">${timelineIcon(entity)}</span>
-              <span class="timeline-copy"><strong>${entity.name}</strong><small>${entity.cityRegion}</small></span>
+
+        <div class="chapter-signal">
+          <span>${nextDrive}</span>
+          <span>${day.transportNote}</span>
+          <span>${bookingLabel}</span>
+        </div>
+
+        <div class="living-route">
+          ${stops.slice(0, 5).map((entity, stopIndex) => `
+            <button class="route-stop detail-button" type="button" data-id="${entity.id}">
+              <span class="stop-time">${stopTime(stopIndex)}</span>
+              <span class="stop-photo"><img src="${entityImage(entity)}" alt="" ${imageFallbackAttr(entity)} /></span>
+              <span class="stop-copy"><strong>${entity.name}</strong><small>${entity.cityRegion} · ${categoryLabels[entity.category]}</small></span>
             </button>
           `).join("")}
+        </div>
+
+        ${unresolved.length ? `
+          <div class="unresolved-strip">
+            <p>Unresolved for this day</p>
+            ${unresolved.map((entity) => `
+              <button class="unresolved-item detail-button" type="button" data-id="${entity.id}">
+                <span>${entity.category === "tours" ? "Route help" : entity.category === "car-rentals" ? "Transport" : "Essential"}</span>
+                <strong>${entity.name}</strong>
+              </button>
+            `).join("")}
+          </div>
+        ` : ""}
+
+        <div class="day-actions journey-actions">
+          <button type="button" data-action="less-driving" data-day="${index}"><span>◇</span>Less driving</button>
+          <button type="button" data-action="cheaper" data-day="${index}"><span>◎</span>Spend less</button>
+          <button type="button" data-action="more-food" data-day="${index}"><span>✦</span>More local</button>
+          <button type="button" data-action="change" data-day="${index}"><span>☷</span>Change day</button>
         </div>
       </div>
     </article>
@@ -1396,7 +1431,33 @@ function renderTripOverview() {
     </div>
   `;
   tripOverview.innerHTML = html;
-  myTripOverview.innerHTML = state.plan.length ? html : "";
+  const activeDay = state.plan[activeDayIndex()];
+  const activeLead = activeDay ? getEntityById(activeDay.stops[0]) : getEntityById("garni-temple");
+  const unresolvedCount = state.plan.reduce((count, day) => count + dayContextDeals(day).length, 0);
+  myTripOverview.innerHTML = state.plan.length ? `
+    <section class="trip-command-hero">
+      <img src="${entityImage(activeLead || getEntityById("garni-temple"), "hero")}" alt="Armenia trip landscape" ${imageFallbackAttr(activeLead || getEntityById("garni-temple"), "hero")} />
+      <div class="trip-command-shade"></div>
+      <div class="trip-command-content">
+        <p class="trip-kicker">Armenia AI Journey</p>
+        <h2>${inputs.days || state.plan.length}-day Armenia route</h2>
+        <p>${labelText(inputs.pace)} pace · ${inputs.transport === "car" ? "Rental car ready" : "Driver/tour assisted"} · ${interests}</p>
+        <div class="trip-status-grid">
+          <span><strong>Day ${activeDayIndex() + 1}</strong><small>current chapter</small></span>
+          <span><strong>$${totalCost || 0}</strong><small>estimated total</small></span>
+          <span><strong>${unresolvedCount}</strong><small>items to confirm</small></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="trip-alerts">
+      <div>
+        <p class="trip-kicker">Trip status</p>
+        <h3>${unresolvedCount ? "Route is built. A few choices need confirmation." : "Route is ready for travel."}</h3>
+      </div>
+      <button class="primary-button" type="button" data-screen-target="plannerScreen">Adjust plan</button>
+    </section>
+  ` : "";
 }
 
 function renderPlan() {
@@ -1593,8 +1654,9 @@ function adjustDay(dayIndex, action) {
 
 function renderSaved() {
   const savedEntities = state.saved.map(getEntityById).filter(Boolean);
-  const hasSavedGeneratedPlan = state.generatedEntityIds.length > 0 && state.plan.length > 0;
-  savedCount.textContent = savedEntities.length;
+  const hasSavedGeneratedPlan = state.plan.length > 0;
+  const plannedIds = [...new Set(state.plan.flatMap((day) => day.stops))];
+  savedCount.textContent = hasSavedGeneratedPlan ? plannedIds.length : savedEntities.length;
   savedList.innerHTML = hasSavedGeneratedPlan
     ? state.plan.map((day, index) => itineraryDayTemplate(day, index)).join("")
     : savedEntities.map((entity) => entityCardTemplate(entity, "saved")).join("");

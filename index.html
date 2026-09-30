@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Armenia AI Travel MVP v0.3</title>
     <meta name="description" content="An AI-first Armenia trip operating system for planning, managing, navigating, and booking a trip." />
-    <link rel="stylesheet" href="./styles.css?v=trip-flow-20260928" />
+    <link rel="stylesheet" href="./styles.css?v=my-trip-cockpit-20260930" />
   </head>
   <body>
     <div class="app-shell">
@@ -313,16 +313,14 @@
         </section>
 
         <section class="screen" id="tripScreen" data-title="My Trip">
-          <div class="trip-hero panel">
-            <div>
-              <p class="kicker">Your Armenia route</p>
-              <h2><span id="savedCount">0</span> saved stops</h2>
-              <p class="muted">Plan, manage, adjust, discover and book from one calm trip view.</p>
+          <section class="my-trip-shell" aria-label="Living Armenia journey">
+            <div class="trip-identity" id="myTripOverview"></div>
+            <div class="journey-days" id="savedList"></div>
+            <div class="trip-clear-row">
+              <span><span id="savedCount">0</span> saved trip places</span>
+              <button class="secondary-button" id="clearTrip" type="button">Clear trip</button>
             </div>
-            <button class="secondary-button" id="clearTrip" type="button">Clear</button>
-          </div>
-          <div class="trip-overview compact" id="myTripOverview"></div>
-          <div class="card-list" id="savedList"></div>
+          </section>
           <div class="empty-state" id="emptyTrip">
             <h2>No saved stops yet</h2>
             <p>Add places from Today, Planner, Map, or Deals.</p>
@@ -396,6 +394,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./app.js?v=trip-flow-20260928"></script>
+    <script src="./app.js?v=my-trip-cockpit-20260930"></script>
   </body>
 </html>
