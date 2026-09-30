@@ -2987,3 +2987,721 @@ input {
     border-radius: 0 0 36px 36px;
   }
 }
+
+/* Unified Armenia AI visual system pass. No product logic changes. */
+:root {
+  --font-ui: Inter, "SF Pro Text", "Avenir Next", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: Inter, "SF Pro Display", "Avenir Next", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bg: #f5eee3;
+  --surface: #fff9ef;
+  --surface-2: #eee2d1;
+  --ink: #151211;
+  --muted: #6d6258;
+  --line: rgba(32, 24, 21, 0.1);
+  --wine: #752138;
+  --wine-2: #9d3149;
+  --apricot: #d78a4b;
+  --charcoal: #12100f;
+  --shadow: 0 22px 54px rgba(38, 24, 20, 0.14);
+  --soft-shadow: 0 12px 28px rgba(38, 24, 20, 0.1);
+  --editorial-shadow: 0 30px 76px rgba(18, 12, 10, 0.28);
+  --radius-xl: 26px;
+  --radius-lg: 20px;
+  --radius-md: 16px;
+}
+
+body,
+button,
+input,
+select {
+  font-family: var(--font-ui);
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 82% -4%, rgba(215, 138, 75, 0.14), transparent 26%),
+    radial-gradient(circle at 10% 4%, rgba(117, 33, 56, 0.1), transparent 24%),
+    linear-gradient(180deg, #fff9ef 0%, #f4eadc 46%, #eadcc8 100%);
+}
+
+h1,
+h2,
+h3,
+.card-title,
+.journey-brand,
+.journey-headline h2,
+.journey-headline p,
+.journey-next h3,
+.journey-route .time,
+.journey-route .timeline-copy strong,
+.journey-context .horizontal-offer h3,
+.journey-ai-actions .home-actions button,
+.trip-command-content h2,
+.trip-status-grid strong,
+.trip-alerts h3,
+.chapter-rail span,
+.chapter-head h3,
+.stop-time,
+.flow-step h2,
+.flow-choice strong,
+.pace-option strong {
+  font-family: var(--font-display);
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.026em;
+}
+
+h2 {
+  font-size: 28px;
+  font-weight: 760;
+}
+
+h3,
+.card-title {
+  font-weight: 720;
+}
+
+.kicker,
+.trip-kicker,
+.flow-kicker,
+.journey-brand,
+.journey-subline,
+.photo-badge,
+.tag,
+.premium-meta span,
+.summary-grid span,
+.day-meta span,
+.deal-tabs span {
+  letter-spacing: 0.075em;
+}
+
+.panel,
+.today-card,
+.place-card,
+.day-card,
+.itinerary-visual-card,
+.overview-card,
+.empty-state,
+.map-bottom-sheet {
+  border-color: rgba(32, 24, 21, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 249, 239, 0.88);
+  box-shadow: var(--soft-shadow);
+}
+
+.primary-button,
+.secondary-button,
+.text-button,
+.chip,
+.deal-strip,
+.flow-cta,
+.flow-secondary {
+  font-weight: 760;
+}
+
+.primary-button,
+.secondary-button,
+.flow-cta,
+.flow-secondary {
+  min-height: 44px;
+}
+
+.bottom-nav,
+.app-shell:has(#homeScreen.active) .bottom-nav {
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  width: auto;
+  max-width: 512px;
+  margin: 0 auto;
+  transform: none;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid rgba(255, 244, 224, 0.16);
+  border-radius: 28px;
+  background: rgba(16, 13, 12, 0.78);
+  box-shadow: 0 22px 62px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(1.15);
+}
+
+.app-shell:not(:has(#homeScreen.active)) .bottom-nav {
+  background: rgba(255, 249, 239, 0.88);
+  border-color: rgba(32, 24, 21, 0.08);
+  box-shadow: 0 18px 42px rgba(37, 23, 18, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.nav-item,
+.app-shell:has(#homeScreen.active) .nav-item {
+  min-height: 64px;
+  gap: 3px;
+  color: rgba(255, 244, 224, 0.68);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.01em;
+}
+
+.app-shell:not(:has(#homeScreen.active)) .nav-item {
+  color: rgba(21, 18, 17, 0.56);
+}
+
+.nav-item span,
+.app-shell:has(#homeScreen.active) .nav-item span {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  font-size: 14px;
+  transition: transform var(--motion-soft), background var(--motion-soft), color var(--motion-soft);
+}
+
+.nav-item.active,
+.app-shell:has(#homeScreen.active) .nav-item.active {
+  color: #fff8ed;
+  border-radius: 22px;
+  background: rgba(117, 33, 56, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(255, 224, 182, 0.18);
+}
+
+.app-shell:not(:has(#homeScreen.active)) .nav-item.active {
+  color: #fff8ed;
+}
+
+.nav-item.active span,
+.app-shell:has(#homeScreen.active) .nav-item.active span {
+  background: transparent;
+  color: inherit;
+  transform: translateY(-1px);
+}
+
+main {
+  padding-bottom: 104px;
+}
+
+/* Today: keep cinematic, remove dominant serif/template feel. */
+.journey-brand {
+  font-size: 18px;
+  font-weight: 720;
+  letter-spacing: 0.18em;
+}
+
+.journey-subline {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.journey-headline h2 {
+  max-width: 330px;
+  font-size: clamp(48px, 12vw, 66px);
+  font-weight: 690;
+  letter-spacing: -0.07em;
+  line-height: 0.94;
+}
+
+.journey-headline p {
+  max-width: 280px;
+  font-size: 18px;
+  font-weight: 520;
+  line-height: 1.14;
+}
+
+.journey-next {
+  border-radius: 20px;
+}
+
+.journey-next h3 {
+  font-size: 22px;
+  font-weight: 720;
+}
+
+.journey-route .time {
+  font-size: 16px;
+  font-weight: 690;
+}
+
+.journey-route .timeline-copy strong {
+  font-size: 17px;
+  font-weight: 720;
+}
+
+.journey-route .timeline-copy small {
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.journey-context .horizontal-offer h3 {
+  font-size: 17px;
+  font-weight: 720;
+}
+
+.journey-ai-actions .home-actions button {
+  min-height: 78px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.journey-ai-actions .home-actions button span {
+  font-size: 17px;
+}
+
+/* Planner: trip-building experience, not a heavy form/card stack. */
+.app-shell:has(#plannerScreen.active) {
+  background:
+    radial-gradient(circle at 80% -8%, rgba(117, 33, 56, 0.2), transparent 30%),
+    linear-gradient(180deg, #161110 0%, #f6ecdf 44%, #efe1cf 100%);
+}
+
+.trip-flow-shell {
+  color: #fff8ed;
+}
+
+.flow-step h2 {
+  font-size: clamp(34px, 9vw, 52px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.flow-copy,
+.flow-note,
+.flow-choice span,
+.pace-option span {
+  font-size: 14px;
+  font-weight: 480;
+  line-height: 1.45;
+}
+
+.flow-choice-grid {
+  gap: 10px;
+}
+
+.flow-choice,
+.pace-option,
+.flow-date {
+  border-radius: 18px;
+  background: rgba(255, 249, 239, 0.1);
+  border-color: rgba(255, 244, 224, 0.14);
+  box-shadow: none;
+}
+
+.flow-choice strong,
+.pace-option strong {
+  font-size: 16px;
+  font-weight: 720;
+}
+
+.flow-choice.active,
+.pace-option.active,
+.flow-day.active,
+.anchor-node.selected {
+  background: rgba(117, 33, 56, 0.9);
+  color: #fff8ed;
+  border-color: rgba(255, 205, 148, 0.3);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.flow-review {
+  color: var(--ink);
+}
+
+.flow-review h2,
+.flow-route-heading h2 {
+  color: var(--ink);
+}
+
+.flow-review .day-card,
+.flow-review .itinerary-visual-card,
+.flow-review .overview-card {
+  border-radius: 18px;
+  box-shadow: var(--soft-shadow);
+}
+
+.flow-review .day-card {
+  background: rgba(255, 249, 239, 0.76);
+}
+
+.legacy-planner-form {
+  display: none;
+}
+
+/* My Trip: keep route-first structure, make typography consistent. */
+.app-shell:has(#tripScreen.active) {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(117, 33, 56, 0.18), transparent 28%),
+    linear-gradient(180deg, #fff8ef 0%, #efe1cf 40%, #171110 100%);
+}
+
+.trip-command-hero {
+  border-radius: 0 0 30px 30px;
+}
+
+.trip-command-content h2 {
+  font-size: clamp(36px, 10vw, 54px);
+  font-weight: 700;
+  letter-spacing: -0.058em;
+  line-height: 0.98;
+}
+
+.trip-status-grid strong,
+.chapter-rail span,
+.chapter-head h3,
+.stop-time,
+.trip-alerts h3 {
+  font-weight: 720;
+}
+
+.trip-status-grid strong {
+  font-size: 18px;
+}
+
+.trip-alerts,
+.chapter-main,
+.unresolved-strip {
+  border-radius: 20px;
+}
+
+.chapter-main {
+  box-shadow: var(--soft-shadow);
+}
+
+.chapter-head h3 {
+  font-size: 21px;
+}
+
+.stop-time {
+  font-size: 14px;
+}
+
+.journey-actions button {
+  border-radius: 16px;
+  font-weight: 700;
+}
+
+/* Map: stronger route hierarchy, less placeholder feeling. */
+.app-shell:has(#mapScreen.active) {
+  background:
+    radial-gradient(circle at 78% 0%, rgba(117, 33, 56, 0.12), transparent 28%),
+    linear-gradient(180deg, #fff9ef 0%, #efe4d4 100%);
+}
+
+.map-search {
+  top: 68px;
+  border-radius: 18px;
+  box-shadow: var(--soft-shadow);
+}
+
+.map-card {
+  border-radius: 22px;
+  border: 1px solid rgba(32, 24, 21, 0.08);
+  background: #e8e1d4;
+  box-shadow: var(--shadow);
+}
+
+.map-art {
+  background:
+    linear-gradient(120deg, rgba(255, 249, 239, 0.72), rgba(255, 249, 239, 0.2)),
+    radial-gradient(circle at 72% 30%, rgba(92, 128, 125, 0.3), transparent 21%),
+    radial-gradient(circle at 38% 62%, rgba(215, 138, 75, 0.22), transparent 20%),
+    linear-gradient(135deg, #d8ded5 0%, #eee1d0 52%, #d6d6c7 100%);
+}
+
+.map-art::before {
+  color: rgba(21, 18, 17, 0.13);
+  font-size: 20px;
+  font-weight: 720;
+  letter-spacing: 0.14em;
+}
+
+.route-line {
+  border-width: 4px;
+  border-color: rgba(117, 33, 56, 0.78);
+  box-shadow: 0 0 0 6px rgba(117, 33, 56, 0.07);
+}
+
+.map-pin {
+  width: 30px;
+  height: 30px;
+  border-width: 2px;
+  background: rgba(64, 65, 58, 0.72);
+}
+
+.map-pin.selected {
+  background: var(--wine);
+  outline: 4px solid rgba(255, 249, 239, 0.92);
+}
+
+.map-pin.car-rentals,
+.map-pin.esim {
+  opacity: 0.48;
+  transform: scale(0.8);
+}
+
+.map-bottom-sheet {
+  border-radius: 22px;
+}
+
+/* Deals and discovery: marketplace, not beige-card grid. */
+.deals-hero {
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(215, 138, 75, 0.16), transparent 30%),
+    linear-gradient(135deg, rgba(255, 249, 239, 0.95), rgba(246, 236, 223, 0.9));
+}
+
+.market-card {
+  border-radius: 20px;
+  background: rgba(255, 249, 239, 0.9);
+}
+
+.market-card .card-title {
+  font-size: 15px;
+}
+
+.card-title {
+  font-size: 19px;
+}
+
+.nearby-list .card-title {
+  font-size: 13px;
+}
+
+.premium-meta span,
+.tag,
+.photo-badge,
+.day-meta span,
+.summary-grid span,
+.chapter-signal span {
+  font-size: 10px;
+  font-weight: 680;
+}
+
+@media (max-width: 430px) {
+  .bottom-nav,
+  .app-shell:has(#homeScreen.active) .bottom-nav {
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    border-radius: 24px;
+  }
+
+  .nav-item,
+  .app-shell:has(#homeScreen.active) .nav-item {
+    min-height: 58px;
+    font-size: 9px;
+  }
+
+  .journey-headline h2 {
+    font-size: clamp(44px, 12vw, 58px);
+  }
+
+  .journey-ai-actions .home-actions {
+    gap: 8px;
+  }
+}
+
+@media (min-width: 760px) {
+  .bottom-nav,
+  .app-shell:has(#homeScreen.active) .bottom-nav {
+    left: 50%;
+    right: auto;
+    width: min(512px, calc(100% - 28px));
+    transform: translateX(-50%);
+  }
+}
+
+/* Final typography refinement: less bulky, more travel-product polish. */
+body {
+  font-weight: 450;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+strong,
+b {
+  font-weight: 680;
+}
+
+.app-header h1 {
+  font-size: 23px;
+  font-weight: 720;
+  letter-spacing: -0.035em;
+}
+
+.kicker,
+.trip-kicker,
+.flow-kicker,
+.journey-subline,
+.photo-badge,
+.tag,
+.premium-meta span,
+.summary-grid span,
+.day-meta span,
+.deal-tabs span,
+.chapter-status,
+.chapter-region,
+.chapter-signal span,
+.unresolved-strip p,
+.spend-pill small {
+  font-weight: 680;
+}
+
+.primary-button,
+.secondary-button,
+.text-button,
+.compact-action,
+.flow-cta,
+.flow-secondary,
+.day-actions button,
+.home-actions button,
+.journey-actions button,
+.chat-form button,
+.deal-strip span {
+  font-weight: 680;
+}
+
+.journey-headline h2,
+.flow-step h2,
+.trip-command-content h2 {
+  font-weight: 640;
+}
+
+.journey-headline p,
+.flow-copy,
+.trip-command-content p:not(.trip-kicker),
+.card-description,
+.muted,
+.meta {
+  font-weight: 430;
+}
+
+.journey-brand {
+  font-weight: 640;
+}
+
+.journey-next h3,
+.journey-route .timeline-copy strong,
+.journey-context .horizontal-offer h3,
+.card-title,
+.chapter-head h3,
+.trip-alerts h3,
+.flow-choice strong,
+.pace-option strong {
+  font-weight: 650;
+}
+
+.journey-ai-actions .home-actions button {
+  font-weight: 620;
+}
+
+.trip-status-grid strong,
+.spend-pill strong,
+.day-card-title strong {
+  font-weight: 650;
+}
+
+.deals-hero h2,
+.map-bottom-sheet h2,
+.overview-card h2,
+.section-heading h2 {
+  font-weight: 650;
+}
+
+.nav-item,
+.app-shell:has(#homeScreen.active) .nav-item {
+  font-weight: 610;
+}
+
+.nav-item.active,
+.app-shell:has(#homeScreen.active) .nav-item.active {
+  font-weight: 680;
+}
+
+.flow-choice,
+.pace-option {
+  padding: 16px;
+}
+
+.flow-choice span,
+.pace-option span {
+  opacity: 0.78;
+}
+
+.flow-cta,
+.flow-secondary {
+  border-radius: 18px;
+}
+
+.place-card,
+.market-card,
+.day-card,
+.chapter-main,
+.deals-hero,
+.map-bottom-sheet {
+  box-shadow: 0 14px 34px rgba(38, 24, 20, 0.1);
+}
+
+.deal-tabs span,
+.premium-meta span,
+.tag {
+  min-height: 28px;
+  padding-inline: 10px;
+}
+
+.card-actions {
+  gap: 7px;
+}
+
+.card-actions .primary-button,
+.card-actions .secondary-button {
+  min-height: 40px;
+  padding-inline: 14px;
+}
+
+/* Mobile usability polish for the unified system. */
+.flow-step {
+  padding-top: 54px;
+}
+
+.flow-orbit {
+  height: 210px;
+  margin: 26px 0 14px;
+}
+
+.flow-orbit span {
+  min-width: 68px;
+  height: 68px;
+}
+
+.flow-orbit span:nth-child(1) { bottom: 10px; }
+.flow-orbit span:nth-child(2) { left: 86px; top: 48px; }
+.flow-orbit span:nth-child(3) { right: 84px; bottom: 40px; }
+.flow-orbit span:nth-child(4) { top: 4px; }
+
+.flow-cta,
+.flow-secondary {
+  min-height: 50px;
+}
+
+.map-pin.esim,
+.map-pin.car-rentals {
+  opacity: 0.18;
+  transform: scale(0.62);
+  box-shadow: none;
+}
+
+@media (max-width: 430px) {
+  .trip-flow-shell {
+    padding-bottom: 96px;
+  }
+
+  .flow-step h2 {
+    font-size: clamp(32px, 9.5vw, 44px);
+  }
+
+  .flow-copy,
+  .flow-note {
+    font-size: 13px;
+  }
+}
