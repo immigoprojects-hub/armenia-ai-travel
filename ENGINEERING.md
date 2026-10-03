@@ -20,6 +20,9 @@ Set `APP_URL` to test another deployment.
 
 The TanStack Start server uses Nitro's Vercel preset. Deploy the repository root,
 not the historical static output. Production alias: https://mvp-v01.vercel.app/.
+The Vercel project is connected to this repository: every push to `main` deploys
+to production automatically, and GitHub Actions CI runs typecheck, lint, unit
+tests and build on pushes and pull requests.
 
 - `GOOGLE_MAPS_API_KEY`: server-only; enable Places API (New). Existing production
   key was verified against the 30 entities: 28 physical matches, two eSIM providers
