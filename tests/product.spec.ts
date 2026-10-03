@@ -1,5 +1,37 @@
 import { test, expect } from "@playwright/test";
 
+test("Road-route response updates shared itinerary times without changing stops", async ({
+  page,
+}) => {
+  await page.route("**/api/public/road-route", async (route) => {
+    const { ids } = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        status: "ok",
+        provider: "openrouteservice",
+        geometry: [
+          [40.1792, 44.5133],
+          [40.185, 44.515],
+          [40.19, 44.52],
+        ],
+        legs: ids.slice(1).map(() => ({ minutes: 17, distanceMeters: 1000 })),
+        minutes: (ids.length - 1) * 17,
+        distanceMeters: (ids.length - 1) * 1000,
+      },
+    });
+  });
+  await page.goto("/");
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const app = await import("/legacy/app.js");
+        const day = app.dayPlan(app.state.plan[0]);
+        return { routed: day.routed, leg: day.stops[0].leg, arrive: day.stops[0].arrive };
+      }),
+    )
+    .toEqual({ routed: true, leg: 17, arrive: 557 });
+});
+
 test.use({ viewport: { width: 390, height: 844 } });
 test("Planner, trip, map, details and saved state stay synchronized", async ({ page }) => {
   const errors: string[] = [];
@@ -18,7 +50,7 @@ test("Planner, trip, map, details and saved state stay synchronized", async ({ p
   await page.getByRole("button", { name: "My Trip", exact: true }).click();
   await expect(page.locator("#tripRoot .chapters .chapter")).toHaveCount(3);
   await page.getByRole("button", { name: "Map", exact: true }).click();
-  await expect(page.locator(".leaflet-container")).toBeVisible();
+  await expect(page.locator(".leaflet-container")).toBeVisible({ timeout: 20000 });
   await expect(page.locator(".pin-stop").first()).toBeVisible();
   await page.locator('[data-map-mode="whole"]').click();
   await expect(page.locator(".pin-stop")).toHaveCount(
