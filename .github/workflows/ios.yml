@@ -10,6 +10,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "scripts/build-native.mjs"
+      - "scripts/ios-screen-text.swift"
       - "public/legacy/native.*"
       - ".github/workflows/ios.yml"
   push:
@@ -20,6 +21,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "scripts/build-native.mjs"
+      - "scripts/ios-screen-text.swift"
       - "public/legacy/native.*"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
@@ -66,7 +68,12 @@ jobs:
           sleep 20
           mkdir -p screenshots
           xcrun simctl io "$udid" screenshot screenshots/launch.png
+      - name: Check the first screen rendered
+        run: |
+          swift scripts/ios-screen-text.swift screenshots/launch.png | tee screenshots/launch.txt
+          grep -qi "day 1 of" screenshots/launch.txt
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ios-simulator-screenshot
           path: screenshots/
