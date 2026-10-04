@@ -1,0 +1,50 @@
+/* iOS app only (html.native-app, loaded from native/www/index.html).
+   The web view runs edge-to-edge (viewport-fit=cover), so keep content clear of the
+   status bar / Dynamic Island. The website never loads this file. */
+html.native-app {
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+html.native-app body {
+  background: var(--ivory);
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+html.native-app body[data-screen="homeScreen"] {
+  background: var(--charcoal);
+}
+html.native-app .app-shell {
+  box-shadow: none;
+}
+
+/* Status-bar backdrop so scrolled content never sits under the clock. */
+html.native-app body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-t);
+  z-index: 950;
+  background: rgba(247, 242, 234, 0.96);
+  pointer-events: none;
+}
+html.native-app body[data-screen="homeScreen"]::before {
+  background: rgba(33, 29, 34, 0.94);
+}
+html.native-app body[data-screen="mapScreen"]::before {
+  background: rgba(247, 242, 234, 0.82);
+}
+
+html.native-app .today-hero {
+  padding-top: calc(18px + var(--safe-t));
+}
+html.native-app .screen-pad {
+  padding-top: calc(20px + var(--safe-t));
+}
+html.native-app .map-top {
+  top: calc(14px + var(--safe-t));
+}
+html.native-app .dialog {
+  max-height: calc(100dvh - var(--safe-t) - 12px);
+}

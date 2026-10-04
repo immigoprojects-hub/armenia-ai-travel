@@ -57,3 +57,22 @@ Lovable owns visual implementation. Engineering changes should preserve it.
 The shared seed is `public/legacy/entities.js`; planner state and interactions are
 in `public/legacy/app.js`. `trip-intelligence.js` isolates rule recommendation
 selection so a future model can augment suggestions without owning mutations.
+
+## iOS app (Capacitor)
+
+The iOS app wraps the same legacy app; nothing is rewritten. `npm run build:native`
+builds the site, assembles `native/www` (`scripts/build-native.mjs`: app-shell markup,
+legacy JS/CSS, assets, plus `public/legacy/native.css`) and runs `cap sync ios`.
+The Xcode project is `ios/App` (Swift Package Manager, no CocoaPods).
+
+- API: the app has no server, so `window.ARMENIA_API_BASE` (default
+  `https://mvp-v01.vercel.app`, override with `NATIVE_API_BASE`) prefixes `/api/public/*`.
+  The API allows the app origin `capacitor://localhost` with CORS (`api-guard.server.ts`);
+  every other cross-origin caller is still rejected.
+- `public/legacy/native.js` is inert on the website. In the app it adds the
+  Google Maps / Apple Maps choice to every Navigate button, uses the native
+  location prompt, and switches the status bar text per screen.
+- Map "Show my location" (both web and app) asks for location only when tapped.
+- `.github/workflows/ios.yml` builds an unsigned simulator app on macOS, launches it,
+  and uploads a screenshot. Signing and TestFlight need an Apple Developer account.
+- Bundle id `com.armeniaai.travel` is a placeholder until the App Store record exists.

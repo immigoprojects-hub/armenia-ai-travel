@@ -119,3 +119,27 @@ test("Ordered road geometry and times are returned, cached, and no key is expose
     else delete process.env.ORS_API_KEY;
   }
 });
+test("iOS app origin is allowed with CORS; other sites stay blocked", async () => {
+  const { guardRequest, withNativeCors, nativePreflight } = await import(guard);
+  const from = (origin, method = "POST") =>
+    new Request("https://example.com/api/public/road-route", {
+      method,
+      headers: { origin, "Access-Control-Request-Method": "POST" },
+    });
+
+  assert.equal(guardRequest(from("capacitor://localhost")), null);
+  assert.equal(guardRequest(from("https://example.com")), null);
+  assert.equal(guardRequest(from("https://other.example"))?.status, 403);
+  assert.equal(guardRequest(from("capacitor://evil.example"))?.status, 403);
+
+  const native = withNativeCors(from("capacitor://localhost"), Response.json({ ok: true }));
+  assert.equal(native.headers.get("access-control-allow-origin"), "capacitor://localhost");
+  assert.deepEqual(await native.json(), { ok: true });
+  const web = withNativeCors(from("https://example.com"), Response.json({ ok: true }));
+  assert.equal(web.headers.get("access-control-allow-origin"), null);
+
+  const preflight = nativePreflight(from("capacitor://localhost", "OPTIONS"));
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), "capacitor://localhost");
+  assert.equal(nativePreflight(from("https://other.example", "OPTIONS")).status, 403);
+});

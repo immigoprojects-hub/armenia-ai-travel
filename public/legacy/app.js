@@ -1,5 +1,6 @@
 import { armeniaEntities } from "./entities.js";
 import { selectRouteSuggestions } from "./trip-intelligence.js";
+import { apiUrl, getDeviceLocation, installNativeShell } from "./native.js";
 
 const categoryLabels = {
   attractions: "Attraction",
@@ -250,7 +251,7 @@ function entityCoordinates(entity) {
 
 function entityImage(entity, variant = "card") {
   const google = googleFor(entity);
-  return google?.photos?.[0]?.url || entity.image || localTravelImage(entity, variant);
+  return apiUrl(google?.photos?.[0]?.url) || entity.image || localTravelImage(entity, variant);
 }
 
 function imageFallbackAttr(entity, variant = "card") {
@@ -259,7 +260,7 @@ function imageFallbackAttr(entity, variant = "card") {
 
 function entityGallery(entity) {
   const google = googleFor(entity);
-  const photos = google?.photos?.length ? google.photos.map((photo) => photo.url) : [];
+  const photos = google?.photos?.length ? google.photos.map((photo) => apiUrl(photo.url)) : [];
   return photos.length ? photos : [entity.image || localTravelImage(entity, "detail")];
 }
 
@@ -859,7 +860,7 @@ async function requestRoadRoute(day, override) {
   if (routeRequests.has(key)) return routeRequests.get(key);
   const task = (async () => {
     try {
-      const response = await fetch("/api/public/road-route", {
+      const response = await fetch(apiUrl("/api/public/road-route"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(spec),
@@ -1288,6 +1289,7 @@ function showToast(message) {
 const ICON = {
   pin: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 1 1 13 0c0 4.8-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>`,
   nav: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 16-7-7 16-2-7-7-2Z"/></svg>`,
+  locate: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22"/></svg>`,
   spark: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>`,
   chevron: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>`,
   close: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>`,
@@ -2029,6 +2031,26 @@ function drawMap(fit) {
     zIndexOffset: 2000,
   }).addTo(mapLayer);
 
+  // Real device position, only after the traveler tapped "Show my location".
+  if (state.userLocation) {
+    const { lat, lng, accuracy } = state.userLocation;
+    if (accuracy > 60)
+      L.circle([lat, lng], {
+        radius: Math.min(accuracy, 2000),
+        color: "#2f6fd6",
+        weight: 1,
+        opacity: 0.35,
+        fillOpacity: 0.08,
+        interactive: false,
+      }).addTo(mapLayer);
+    L.marker([lat, lng], {
+      icon: divIcon(`<span class="pin-you is-live"><i></i></span>`, [24, 24]),
+      interactive: false,
+      title: "You are here",
+      zIndexOffset: 3000,
+    }).addTo(mapLayer);
+  }
+
   if (fit && boundsPts.length > 1) {
     leafletMap.fitBounds(boundsPts, {
       paddingTopLeft: [28, 96],
@@ -2036,6 +2058,35 @@ function drawMap(fit) {
       maxZoom: 13,
       animate: true,
     });
+  }
+}
+// Armenia's bounding box; outside it the trip map stays on the route instead of panning away.
+const ARMENIA_BOUNDS = { south: 38.8, north: 41.35, west: 43.4, east: 46.7 };
+async function locateTraveler() {
+  const button = $("[data-map-locate]");
+  button?.classList.add("is-busy");
+  try {
+    const here = await getDeviceLocation();
+    state.userLocation = here;
+    drawMap(false);
+    const inArmenia =
+      here.lat > ARMENIA_BOUNDS.south &&
+      here.lat < ARMENIA_BOUNDS.north &&
+      here.lng > ARMENIA_BOUNDS.west &&
+      here.lng < ARMENIA_BOUNDS.east;
+    if (inArmenia && leafletMap)
+      leafletMap.setView([here.lat, here.lng], Math.max(leafletMap.getZoom(), 13), {
+        animate: true,
+      });
+    else showToast("You're outside Armenia — showing your trip route");
+  } catch (error) {
+    showToast(
+      error.code === "denied"
+        ? "Location is off. Allow it in Settings to see yourself on the map"
+        : "Couldn't find your location. Try again outside",
+    );
+  } finally {
+    $("[data-map-locate]")?.classList.remove("is-busy");
   }
 }
 function selectStop(id, dayIndex) {
@@ -2111,7 +2162,10 @@ function renderMap(fit = false) {
       <button class="${!state.mapWhole ? "active" : ""}" data-map-mode="day">${isToday ? "Today" : `Day ${dIndex + 1}`}</button>
       <button class="${state.mapWhole ? "active" : ""}" data-map-mode="whole">Whole trip</button>
     </div>
-    <button class="glass-icon light" data-map-fit aria-label="Fit route">${ICON.nav}</button>`;
+    <div class="map-actions">
+      <button class="glass-icon light" data-map-locate aria-label="Show my location">${ICON.locate}</button>
+      <button class="glass-icon light" data-map-fit aria-label="Fit route">${ICON.nav}</button>
+    </div>`;
 
   if (state.mapWhole) {
     const totalDrive = state.plan.reduce((s, d) => s + dayPlan(d).driveMinutes, 0);
@@ -2481,6 +2535,7 @@ document.addEventListener("click", (event) => {
     return renderMap(true);
   }
   if (q("[data-map-fit]")) return drawMap(true);
+  if (q("[data-map-locate]")) return locateTraveler();
   if (q("[data-map-retry]")) return ensureMap();
 
   const stop = q("[data-stop]");
@@ -2718,7 +2773,7 @@ async function loadGooglePlacesEnrichment() {
         coordinates: e.coordinates,
       })),
     };
-    const response = await fetch("/api/public/places-enrichment", {
+    const response = await fetch(apiUrl("/api/public/places-enrichment"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2745,6 +2800,7 @@ addMessage(
   "assistant",
   "Hi — I know your itinerary. Ask about rain, kids, food, wine, drivers or connectivity.",
 );
+installNativeShell();
 initSheetDrag();
 setSheet("half");
 document.body.dataset.screen = "homeScreen";

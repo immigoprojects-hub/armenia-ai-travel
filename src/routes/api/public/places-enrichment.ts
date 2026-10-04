@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHmac } from "node:crypto";
 import { armeniaEntities } from "../../../../public/legacy/entities.js";
-import { guardRequest } from "../../../lib/api-guard.server";
+import { guardRequest, nativePreflight, withNativeCors } from "../../../lib/api-guard.server";
 
 const GOOGLE_PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 const CACHE_TTL_MS = 1000 * 60 * 5;
@@ -250,50 +250,53 @@ async function searchEntity(entity: Entity, apiKey: string) {
 export const Route = createFileRoute("/api/public/places-enrichment")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
-        const rejected = guardRequest(request, 8);
-        if (rejected) return rejected;
-        const apiKey = process.env["GOOGLE_MAPS_API_KEY"];
-        if (!apiKey || apiKey === "[SENSITIVE]") {
-          return json(200, {
-            status: "missing_api_key",
-            message: "Set GOOGLE_MAPS_API_KEY to enable Google Places enrichment.",
-            results: [],
-          });
-        }
-
-        try {
-          const parsed = (await request.json()) as { entities?: Entity[] };
-          const requested = Array.isArray(parsed?.entities) ? parsed.entities.slice(0, 30) : [];
-          const entities = [...new Set(requested.map((e) => e?.id))]
-            .map((id) => armeniaEntities.find((e) => e.id === id))
-            .filter((e): e is NonNullable<typeof e> => Boolean(e));
-          if (!entities.length) return json(400, { error: "No entities supplied." });
-
-          const results: unknown[] = [];
-          for (let i = 0; i < entities.length; i += 3) {
-            results.push(
-              ...(await Promise.all(
-                entities
-                  .slice(i, i + 3)
-                  .map((entity) =>
-                    entity.category === "esim"
-                      ? { id: entity.id, status: "not_applicable" }
-                      : searchEntity(entity, apiKey),
-                  ),
-              )),
-            );
-          }
-
-          return json(200, { status: "ok", generatedAt: new Date().toISOString(), results });
-        } catch (error) {
-          console.error("Places enrichment error", error);
-          return json(500, {
-            status: "error",
-            message: "Place data is temporarily unavailable.",
-          });
-        }
-      },
+      POST: async ({ request }) => withNativeCors(request, await enrichPlaces(request)),
+      OPTIONS: ({ request }) => nativePreflight(request),
     },
   },
 });
+
+async function enrichPlaces(request: Request): Promise<Response> {
+  const rejected = guardRequest(request, 8);
+  if (rejected) return rejected;
+  const apiKey = process.env["GOOGLE_MAPS_API_KEY"];
+  if (!apiKey || apiKey === "[SENSITIVE]") {
+    return json(200, {
+      status: "missing_api_key",
+      message: "Set GOOGLE_MAPS_API_KEY to enable Google Places enrichment.",
+      results: [],
+    });
+  }
+
+  try {
+    const parsed = (await request.json()) as { entities?: Entity[] };
+    const requested = Array.isArray(parsed?.entities) ? parsed.entities.slice(0, 30) : [];
+    const entities = [...new Set(requested.map((e) => e?.id))]
+      .map((id) => armeniaEntities.find((e) => e.id === id))
+      .filter((e): e is NonNullable<typeof e> => Boolean(e));
+    if (!entities.length) return json(400, { error: "No entities supplied." });
+
+    const results: unknown[] = [];
+    for (let i = 0; i < entities.length; i += 3) {
+      results.push(
+        ...(await Promise.all(
+          entities
+            .slice(i, i + 3)
+            .map((entity) =>
+              entity.category === "esim"
+                ? { id: entity.id, status: "not_applicable" }
+                : searchEntity(entity, apiKey),
+            ),
+        )),
+      );
+    }
+
+    return json(200, { status: "ok", generatedAt: new Date().toISOString(), results });
+  } catch (error) {
+    console.error("Places enrichment error", error);
+    return json(500, {
+      status: "error",
+      message: "Place data is temporarily unavailable.",
+    });
+  }
+}
