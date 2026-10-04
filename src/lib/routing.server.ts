@@ -59,7 +59,8 @@ export async function routeRequest(request: Request): Promise<Response> {
             headers: { Authorization: apiKey, "Content-Type": "application/json" },
             body: JSON.stringify({
               coordinates: points.map((p) => [p!.lng, p!.lat]),
-              instructions: false,
+              // ORS only returns per-leg `segments` when instructions are on.
+              instructions: true,
             }),
             signal: AbortSignal.timeout(15000),
           },
@@ -69,17 +70,21 @@ export async function routeRequest(request: Request): Promise<Response> {
         const feature = data.features?.[0];
         const segments = feature?.properties?.segments;
         if (!feature?.geometry?.coordinates?.length || segments?.length !== ids.length - 1)
-          throw new Error("Invalid route response");
+          throw new Error(
+            `Invalid route response (${feature?.geometry?.coordinates?.length ?? 0} points, ${segments?.length ?? 0}/${ids.length - 1} segments)`,
+          );
+        const legs = segments.map((s: { duration?: number; distance?: number }) => ({
+          minutes: Math.max(0, Math.ceil((s.duration ?? 0) / 60)),
+          distanceMeters: s.distance ?? 0,
+        }));
+        const summary = feature.properties.summary ?? {};
         const value: RoadRoute = {
           status: "ok",
           provider: "openrouteservice",
           geometry: feature.geometry.coordinates.map((p: number[]) => [p[1], p[0]]),
-          legs: segments.map((s: { duration: number; distance: number }) => ({
-            minutes: Math.max(0, Math.ceil(s.duration / 60)),
-            distanceMeters: s.distance,
-          })),
-          minutes: Math.ceil(feature.properties.summary.duration / 60),
-          distanceMeters: feature.properties.summary.distance,
+          legs,
+          minutes: Math.ceil((summary.duration ?? 0) / 60),
+          distanceMeters: summary.distance ?? 0,
         };
         if (cache.size >= 300) cache.delete(cache.keys().next().value!);
         cache.set(key, { expires: Date.now() + 3600000, value });
