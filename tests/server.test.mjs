@@ -143,3 +143,67 @@ test("iOS app origin is allowed with CORS; other sites stay blocked", async () =
   assert.equal(preflight.headers.get("access-control-allow-origin"), "capacitor://localhost");
   assert.equal(nativePreflight(from("https://other.example", "OPTIONS")).status, 403);
 });
+test("Routing asks ORS for segments and parses its real GeoJSON shape", async () => {
+  const original = globalThis.fetch;
+  const previous = process.env.ORS_API_KEY;
+  process.env.ORS_API_KEY = "test-only-key";
+  // Mirrors openrouteservice: per-leg `segments` are only sent with instructions.
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    const properties = {
+      summary: { distance: 64512.3, duration: 4321.6 },
+      way_points: [0, 41, 97],
+    };
+    if (body.instructions !== false)
+      properties.segments = [
+        {
+          distance: 45210.1,
+          duration: 2950.4,
+          steps: [{ distance: 45210.1, duration: 2950.4, type: 11, instruction: "Head east" }],
+        },
+        {
+          distance: 19302.2,
+          duration: 1371.2,
+          steps: [{ distance: 19302.2, duration: 1371.2, type: 10, instruction: "Arrive" }],
+        },
+      ];
+    return Response.json({
+      type: "FeatureCollection",
+      bbox: [44.4, 39.8, 44.6, 40.2],
+      features: [
+        {
+          bbox: [44.4, 39.8, 44.6, 40.2],
+          type: "Feature",
+          properties,
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [44.5133, 40.1792],
+              [44.5101, 40.0],
+              [44.5763, 39.8784],
+              [44.6, 39.85],
+            ],
+          },
+        },
+      ],
+      metadata: { service: "routing", engine: { version: "9.0.0" } },
+    });
+  };
+  try {
+    const response = await routeRequest(
+      req({ ids: ["yerevan-base", "khor-virap", "noravank"], profile: "driving-car" }),
+    );
+    assert.equal(response.status, 200);
+    const value = await response.json();
+    assert.deepEqual(
+      value.legs.map((l) => l.minutes),
+      [50, 23],
+    );
+    assert.equal(value.minutes, 73);
+    assert.equal(value.geometry.length, 4);
+  } finally {
+    globalThis.fetch = original;
+    if (previous) process.env.ORS_API_KEY = previous;
+    else delete process.env.ORS_API_KEY;
+  }
+});
