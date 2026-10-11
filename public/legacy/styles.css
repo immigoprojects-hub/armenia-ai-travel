@@ -43,7 +43,8 @@ body {
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; }
-svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+/* Icon defaults; Leaflet draws route lines in its own full-size SVG, which must keep its size. */
+svg:where(:not(.leaflet-overlay-pane svg)) { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 h1, h2, h3, p { margin: 0; }
 dl, dd { margin: 0; }
 ol, ul { margin: 0; padding: 0; list-style: none; }
@@ -157,7 +158,7 @@ main { padding-bottom: calc(var(--nav-h) + var(--safe-b)); }
 
 .explore { background: var(--ivory); color: var(--text); padding: 4px 0 24px; border-radius: 22px 22px 0 0; }
 .explore .panel-head, .explore .seg-scroll { padding: 0 20px; }
-.explore-row { display: flex; gap: 12px; overflow-x: auto; padding: 14px 20px 4px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.explore-row { display: flex; gap: 12px; overflow-x: auto; padding: 14px 20px 4px; scroll-padding-inline: 20px; scroll-snap-type: x mandatory; scrollbar-width: none; }
 .explore-row::-webkit-scrollbar { display: none; }
 .explore-card { flex: 0 0 200px; scroll-snap-align: start; }
 .explore-card img { width: 100%; height: 132px; object-fit: cover; border-radius: var(--r-md); }

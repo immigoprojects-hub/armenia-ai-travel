@@ -94,6 +94,26 @@ const tripClusters = [
     transport: { car: ["hertz-armenia"], noCar: ["nomad-armenia-esim"] },
     note: "Useful setup day with hotel base, connectivity, and optional rental-car planning.",
   },
+  {
+    id: "yerevan-free",
+    title: "Free day in Yerevan",
+    region: "Yerevan",
+    driveLevel: "none",
+    interests: [],
+    baseStops: [],
+    restaurants: [
+      "mirzoyan-library",
+      "crumbs-bread-factory",
+      "dolmama",
+      "gouroo-club-garden",
+      "tavern-yerevan",
+      "sherep-restaurant",
+      "in-vino",
+      "lavash-restaurant",
+    ],
+    transport: { car: [], noCar: [] },
+    note: "Open buffer day: rest, revisit a favourite, or add places from the map.",
+  },
 ];
 
 const interestToTags = {
@@ -328,7 +348,9 @@ function orderedClusters(inputs) {
   const cityFirst = tripClusters.find((cluster) => cluster.id === "yerevan-arrival");
   const practical = tripClusters.find((cluster) => cluster.id === "practical-setup");
   const candidates = tripClusters
-    .filter((cluster) => cluster.id !== "yerevan-arrival" && cluster.id !== "practical-setup")
+    .filter(
+      (cluster) => !["yerevan-arrival", "practical-setup", "yerevan-free"].includes(cluster.id),
+    )
     .filter(
       (cluster) =>
         !(cluster.id === "tatev-syunik" && (inputs.days < 5 || inputs.pace === "relaxed")),
@@ -449,9 +471,10 @@ function adjustDay(dayIndex, action) {
     const options = orderedClusters(inputs).filter(
       (cluster) => cluster.id !== currentDay.clusterId,
     );
+    // When every route is already in the trip, offer an open day rather than a duplicate.
     const replacement =
       options.find((cluster) => !existingClusterIds.has(cluster.id)) ||
-      options[0] ||
+      (currentDay.clusterId !== "yerevan-free" ? clusterById("yerevan-free") : options[0]) ||
       clusterById("yerevan-arrival");
     state.plan[dayIndex] = buildDayFromCluster(replacement, inputs, dayIndex, {
       note: `${replacement.note} Swapped by Change this day.`,
@@ -1226,8 +1249,9 @@ function buildPlan(shouldSave = true) {
   const usedIds = new Set();
   const clusters = orderedClusters(inputs);
   const selectedClusters = [];
+  // Longer trips than there are distinct routes get open days instead of a repeated day.
   while (selectedClusters.length < inputs.days)
-    selectedClusters.push(clusters[selectedClusters.length % clusters.length]);
+    selectedClusters.push(clusters[selectedClusters.length] || clusterById("yerevan-free"));
 
   state.plan = selectedClusters.map((cluster, index) => {
     const stops = [...cluster.baseStops];
@@ -1317,6 +1341,7 @@ function renderToday() {
   const next = p.stops[0];
   const hero = next?.entity || getEntityById("cascade-complex");
   const phase = tripPhase();
+  const isCurrent = phase === "live" || phase === "planned";
   const suggestions = routeSuggestions(dayIndex);
   const pending = p.services.filter(
     (e) => ["needs", "not"].includes(bookingStatus(e, day)) && e.category !== "esim",
@@ -1327,13 +1352,14 @@ function renderToday() {
   const lunch = suggestions.find(
     (s) => s.kind === "add" && getEntityById(s.id)?.category === "restaurants-cafes",
   );
+  const hasFood = p.stops.some((s) => s.entity.category === "restaurants-cafes");
   if (tight)
     chips.push(
       `<button class="ai-chip is-alert" data-suggest="${suggestions.indexOf(tight)}" data-suggest-day="${dayIndex}">Today is tight</button>`,
     );
   if (lunch)
     chips.push(
-      `<button class="ai-chip" data-suggest="${suggestions.indexOf(lunch)}" data-suggest-day="${dayIndex}">Add lunch · ${lunch.badge}</button>`,
+      `<button class="ai-chip" data-suggest="${suggestions.indexOf(lunch)}" data-suggest-day="${dayIndex}">${hasFood ? `Add ${escapeHtml(shortName(getEntityById(lunch.id)))}` : "Add lunch"} · ${lunch.badge}</button>`,
     );
   chips.push(
     `<button class="ai-chip" data-day-action="cheaper" data-day="${dayIndex}">Spend less</button>`,
@@ -1342,7 +1368,7 @@ function renderToday() {
     `<button class="ai-chip" data-day-action="more-food" data-day="${dayIndex}">More local</button>`,
   );
   chips.push(
-    `<button class="ai-chip" data-day-action="change" data-day="${dayIndex}">Replace a stop</button>`,
+    `<button class="ai-chip" data-day-action="change" data-day="${dayIndex}">Swap this day</button>`,
   );
 
   root.innerHTML = `
@@ -1362,7 +1388,7 @@ function renderToday() {
         next
           ? `
       <button class="next-card detail-button" data-id="${next.entity.id}">
-        <span class="next-label">Next stop</span>
+        <span class="next-label">${isCurrent ? "Next stop" : "First stop"}</span>
         <span class="next-name">${escapeHtml(next.entity.name)}</span>
         <span class="next-meta">Leave ${fmtTime(p.startMinutes)} · ${fmtDur(next.leg)} from ${next.from} · arrive ${fmtTime(next.arrive)}</span>
         <span class="next-go">${ICON.chevron}</span>
@@ -1377,16 +1403,16 @@ function renderToday() {
         <button class="text-link" data-screen-target="mapScreen">Open map ${ICON.chevron}</button>
       </div>
       <ol class="route-rail">
-        <li class="rail-node is-origin"><span class="rail-dot"></span><div><strong>Yerevan</strong><small>Depart ${fmtTime(p.startMinutes)}</small></div></li>
+        <li class="rail-node is-origin"><span class="rail-dot"></span><div><strong>${escapeHtml(p.origin.name)}</strong><small>Depart ${fmtTime(p.startMinutes)}</small></div></li>
         ${p.stops
           .map(
             (s, i) => `
           <li class="rail-leg"><span>${fmtDur(s.leg)}</span></li>
-          <li class="rail-node ${i === 0 ? "is-next" : ""}">
+          <li class="rail-node ${i === 0 && isCurrent ? "is-next" : ""}">
             <span class="rail-dot">${i + 1}</span>
             <button class="rail-body detail-button" data-id="${s.entity.id}">
               <strong>${escapeHtml(s.entity.name)}</strong>
-              <small>${fmtTime(s.arrive)}${s.duration ? ` – ${fmtTime(s.depart)}` : " · check-in"}${i === 0 ? " · next" : ""}</small>
+              <small>${fmtTime(s.arrive)}${s.duration ? ` – ${fmtTime(s.depart)}` : " · check-in"}${i === 0 && isCurrent ? " · next" : ""}</small>
             </button>
           </li>`,
           )
@@ -2055,7 +2081,7 @@ function drawMap(fit) {
     leafletMap.fitBounds(boundsPts, {
       paddingTopLeft: [28, 96],
       paddingBottomRight: [28, sheetPadding()],
-      maxZoom: 13,
+      maxZoom: 15,
       animate: true,
     });
   }
@@ -2097,8 +2123,15 @@ function selectStop(id, dayIndex) {
   if (state.sheet === "peek") setSheet("half");
   renderMap();
   const c = coords(getEntityById(id));
-  if (leafletMap && c) leafletMap.panTo([c.lat, c.lng], { animate: true });
-  $(`[data-stop-focus="${id}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  // Centre the pin in the map area left visible above the sheet and the top controls.
+  if (leafletMap && c) {
+    const shift = (sheetPadding() - 96) / 2;
+    const target = leafletMap.unproject(leafletMap.project([c.lat, c.lng]).add([0, shift]));
+    leafletMap.panTo(target, { animate: true });
+  }
+  // The selected stop card renders at the top of the sheet. scrollIntoView would also
+  // scroll the map screen itself and push the map out of view on phones.
+  $("#mapSheetBody")?.scrollTo({ top: 0, behavior: "smooth" });
 }
 function startPreview(dayIndex, index) {
   const s = routeSuggestions(dayIndex)[index];
