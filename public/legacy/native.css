@@ -1,6 +1,6 @@
 /* iOS app only (html.native-app, loaded from native/www/index.html).
    The web view runs edge-to-edge (viewport-fit=cover), so keep content clear of the
-   status bar / Dynamic Island. The website never loads this file. */
+   status bar / Dynamic Island and the home indicator. The website never loads this file. */
 html.native-app {
   --safe-t: env(safe-area-inset-top, 0px);
 }
@@ -9,9 +9,6 @@ html.native-app body {
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-}
-html.native-app body[data-screen="homeScreen"] {
-  background: var(--charcoal);
 }
 html.native-app .app-shell {
   box-shadow: none;
@@ -29,22 +26,34 @@ html.native-app body::before {
   background: rgba(247, 242, 234, 0.96);
   pointer-events: none;
 }
-html.native-app body[data-screen="homeScreen"]::before {
-  background: rgba(33, 29, 34, 0.94);
+
+/* The HAIQ header opens every screen, so it takes the status-bar inset for all of them. */
+html.native-app .haiq-header {
+  margin-top: var(--safe-t);
 }
-html.native-app body[data-screen="mapScreen"]::before {
-  background: rgba(247, 242, 234, 0.82);
+html.native-app .map-screen {
+  height: calc(100dvh - 148px - var(--safe-t) - var(--safe-b));
 }
 
-html.native-app .today-hero {
-  padding-top: calc(18px + var(--safe-t));
+/* Floating tab bar sits above the home indicator. */
+html.native-app .bottom-nav {
+  bottom: calc(8px + var(--safe-b));
 }
-html.native-app .screen-pad {
-  padding-top: calc(20px + var(--safe-t));
+html.native-app .ara-float {
+  translate: 0 calc(-1 * var(--safe-b));
 }
-html.native-app .map-top {
-  top: calc(14px + var(--safe-t));
+html.native-app main {
+  padding-bottom: calc(var(--nav-h) + 44px + var(--safe-b));
 }
+html.native-app body[data-screen="mapScreen"] main {
+  padding-bottom: 0;
+}
+
 html.native-app .dialog {
   max-height: calc(100dvh - var(--safe-t) - 12px);
+}
+
+/* The app has no Deals tab yet (sample offers stay on the website). */
+html.native-app .bottom-nav {
+  grid-template-columns: repeat(4, 1fr);
 }

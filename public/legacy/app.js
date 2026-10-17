@@ -1,6 +1,6 @@
 import { armeniaEntities } from "./entities.js";
 import { selectRouteSuggestions } from "./trip-intelligence.js";
-import { apiUrl, getDeviceLocation, installNativeShell } from "./native.js";
+import { apiUrl, getDeviceLocation, installNativeShell, isNativeApp } from "./native.js";
 
 const categoryLabels = {
   attractions: "Attraction",
@@ -800,6 +800,30 @@ function armeniaToday() {
   }).formatToParts(new Date());
   const get = (type) => parts.find((p) => p.type === type).value;
   return new Date(`${get("year")}-${get("month")}-${get("day")}T00:00:00Z`);
+}
+function armeniaNowMinutes() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Yerevan",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  return get("hour") * 60 + get("minute");
+}
+/** Position of `now` (minutes after midnight) in a day's stops: the stop being visited ("now"),
+    the next one ("upcoming"), or none left ("done", index -1). */
+function stopProgress(stops, now) {
+  const index = stops.findIndex((s) => s.depart > now);
+  if (index === -1) return { index: -1, state: stops.length ? "done" : "upcoming" };
+  return { index, state: stops[index].arrive <= now ? "now" : "upcoming" };
+}
+/** Next stop for a day. Only today's day of a dated trip follows the clock; any other day
+    (or a trip without dates) starts at its first stop. */
+function dayProgress(dayIndex, p) {
+  const live = tripPhase() === "live" && dayIndex === currentDayIndex();
+  if (!live) return { index: p.stops.length ? 0 : -1, state: "upcoming" };
+  return stopProgress(p.stops, armeniaNowMinutes());
 }
 function currentDayIndex() {
   const start = tripStart();
@@ -1701,7 +1725,7 @@ function renderMyTrip() {
   const d = currentDayIndex();
   const today = state.plan[d];
   const tp = dayPlan(today);
-  const next = tp.stops[0];
+  const next = tp.stops[dayProgress(d, tp).index];
   const total = state.plan.reduce((sum, day) => sum + (day.estimatedCost || 0), 0);
   const issues = tripIssues();
   const bookings = [
@@ -1951,6 +1975,7 @@ function drawMap(fit) {
 
   const drawDay = (day, i, emphasis) => {
     const p = dayPlan(day);
+    const nextIndex = dayProgress(i, p).index;
     const pts = [p.origin, ...p.stops.map((s) => coords(s.entity))];
     if (p.returnLeg) pts.push(BASE);
     const road = roadRoute(day);
@@ -1969,7 +1994,7 @@ function drawMap(fit) {
       const c = coords(s.entity);
       boundsPts.push([c.lat, c.lng]);
       const selected = state.selectedStop === s.entity.id;
-      const isNext = emphasis && n === 0 && !state.mapWhole;
+      const isNext = emphasis && n === nextIndex && !state.mapWhole;
       const label = state.mapWhole ? `${i + 1}` : `${n + 1}`;
       const marker = L.marker([c.lat, c.lng], {
         icon: divIcon(
@@ -2189,6 +2214,7 @@ function renderMap(fit = false) {
   const day = state.plan[dIndex];
   const p = dayPlan(day);
   const isToday = dIndex === currentDayIndex();
+  const nextIndex = dayProgress(dIndex, p).index;
 
   head.innerHTML = `
     <div class="map-seg">
@@ -2230,7 +2256,7 @@ function renderMap(fit = false) {
       </div>
       <div class="route-ribbon">
         <span class="ribbon-now">Now</span>
-        ${p.stops.map((s, i) => `<span class="ribbon-arrow">→</span><button class="ribbon-stop ${state.selectedStop === s.entity.id ? "active" : ""} ${i === 0 ? "is-next" : ""}" data-stop="${s.entity.id}" data-stop-day="${dIndex}">${escapeHtml(stopRole(s.entity))}</button>`).join("")}
+        ${p.stops.map((s, i) => `<span class="ribbon-arrow">→</span><button class="ribbon-stop ${state.selectedStop === s.entity.id ? "active" : ""} ${i === nextIndex ? "is-next" : ""}" data-stop="${s.entity.id}" data-stop-day="${dIndex}">${escapeHtml(stopRole(s.entity))}</button>`).join("")}
       </div>
       ${state.preview ? previewTemplate(day, p) : sel ? selectedTemplate(sel, p, day) : ""}
       <ol class="sheet-timeline">
@@ -2240,7 +2266,7 @@ function renderMap(fit = false) {
           <li class="${state.selectedStop === s.entity.id ? "active" : ""}" data-stop-focus="${s.entity.id}">
             ${`<span class="tl-leg">${fmtDur(s.leg)} from ${escapeHtml(s.from)}</span>`}
             <button class="tl-row" data-stop="${s.entity.id}" data-stop-day="${dIndex}">
-              <span class="tl-num ${i === 0 ? "is-next" : ""}">${i + 1}</span>
+              <span class="tl-num ${i === nextIndex ? "is-next" : ""}">${i + 1}</span>
               <span class="tl-copy"><strong>${escapeHtml(s.entity.name)}</strong><small>${fmtTime(s.arrive)}${s.duration ? ` · ${fmtDur(s.duration)}` : " · overnight"}</small></span>
             </button>
           </li>`,
@@ -2833,6 +2859,9 @@ async function loadGooglePlacesEnrichment() {
 
 /* HAIQ — mock-only presentation layer. Original routing algorithms retained. */
 const haiq = { lang: "en", wallet: [], nearby: 0, filter: "all" };
+// The iOS app ships without the sample coupons, weather and events the website previews:
+// App Review rejects demo content, and the partner offers are not real yet.
+const STORE_BUILD = isNativeApp();
 const ht = (en, ru) => (haiq.lang === "ru" ? ru : en);
 const araSrc = () =>
   document.documentElement.dataset.araImage || document.querySelector(".ara-float img")?.src;
@@ -2884,51 +2913,116 @@ const coupons = [
     desc: ["An afternoon of hidden stories.", "Прогулка по тайным историям города."],
   },
 ];
-const nearbyItems = [
-  {
-    id: "mirzoyan-library",
-    type: ["Place", "Место"],
-    title: ["A courtyard worth finding", "Дворик, который стоит найти"],
-    sub: [
-      "Mirzoyan Library · 600 m · coffee & culture",
-      "Библиотека Мирзояна · 600 м · кофе и культура",
-    ],
-  },
-  {
-    id: "republic-square",
-    type: ["Event", "Событие"],
-    title: ["An evening at Republic Square", "Вечер на площади Республики"],
-    sub: ["Evening city walk · 19:00 · sample event", "Вечерняя прогулка · 19:00 · пример события"],
-  },
-  {
-    id: "lavash-restaurant",
-    type: ["Deal", "Скидка"],
-    title: ["Your next delicious stop", "Ваша следующая вкусная остановка"],
-    sub: ["Lavash · 350 m · 20% off sample offer", "Lavash · 350 м · пример скидки 20%"],
-  },
-];
+const nearbyItems = STORE_BUILD
+  ? [
+      {
+        id: "mirzoyan-library",
+        type: ["Place", "Место"],
+        title: ["A courtyard worth finding", "Дворик, который стоит найти"],
+        sub: [
+          "Mirzoyan Library · 600 m · coffee & culture",
+          "Библиотека Мирзояна · 600 м · кофе и культура",
+        ],
+      },
+      {
+        id: "republic-square",
+        type: ["Place", "Место"],
+        title: ["An evening at Republic Square", "Вечер на площади Республики"],
+        sub: [
+          "Republic Square · 800 m · evening walk",
+          "Площадь Республики · 800 м · вечерняя прогулка",
+        ],
+      },
+    ]
+  : [
+      {
+        id: "mirzoyan-library",
+        type: ["Place", "Место"],
+        title: ["A courtyard worth finding", "Дворик, который стоит найти"],
+        sub: [
+          "Mirzoyan Library · 600 m · coffee & culture",
+          "Библиотека Мирзояна · 600 м · кофе и культура",
+        ],
+      },
+      {
+        id: "republic-square",
+        type: ["Event", "Событие"],
+        title: ["An evening at Republic Square", "Вечер на площади Республики"],
+        sub: [
+          "Evening city walk · 19:00 · sample event",
+          "Вечерняя прогулка · 19:00 · пример события",
+        ],
+      },
+      {
+        id: "lavash-restaurant",
+        type: ["Deal", "Скидка"],
+        title: ["Your next delicious stop", "Ваша следующая вкусная остановка"],
+        sub: ["Lavash · 350 m · 20% off sample offer", "Lavash · 350 м · пример скидки 20%"],
+      },
+    ];
+function haiqNextUp(d, p) {
+  const prog = dayProgress(d, p);
+  if (prog.state === "done") {
+    const tomorrowPlan = state.plan[d + 1] && dayPlan(state.plan[d + 1]);
+    const tomorrow = tomorrowPlan?.stops[0];
+    return tomorrow
+      ? {
+          label: `${ht("TOMORROW", "ЗАВТРА")} · ${fmtTime(tomorrow.arrive)}`,
+          name: tomorrow.entity.name,
+          from: 0,
+          stops: tomorrowPlan.stops,
+        }
+      : {
+          label: ht("TRIP COMPLETE", "ПОЕЗДКА ЗАВЕРШЕНА"),
+          name: ht("See you again", "До новых встреч"),
+          from: 0,
+          stops: p.stops,
+        };
+  }
+  const next = p.stops[prog.index];
+  if (!next)
+    return {
+      label: `${ht("NEXT UP", "СЛЕДУЮЩАЯ ОСТАНОВКА")} · 09:00`,
+      name: "Yerevan",
+      from: 0,
+      stops: p.stops,
+    };
+  return {
+    label:
+      prog.state === "now"
+        ? `${ht("NOW", "СЕЙЧАС")} · ${ht("until", "до")} ${fmtTime(next.depart)}`
+        : `${ht("NEXT UP", "СЛЕДУЮЩАЯ ОСТАНОВКА")} · ${fmtTime(next.arrive)}`,
+    name: next.entity.name,
+    from: prog.index,
+    stops: p.stops,
+  };
+}
 function renderHaiqToday() {
   const d = currentDayIndex(),
     day = state.plan[d],
     p = dayPlan(day),
-    next = p.stops[0];
+    up = haiqNextUp(d, p);
   $("#todayRoot").innerHTML = `
- <section class="ara-welcome"><div class="ara-welcome-copy"><p class="ara-intro">${ht("BAREV! I’M ARA", "БАРЕВ! Я АРА")} <span>✦</span></p><h1>${ht("Your Armenian", "Ваш армянский")}<br><em>${ht("friend, Ara.", "друг Ара.")}</em></h1><div class="ara-speech"><strong>${ht("A little sunshine. A lot to discover.", "Немного солнца. Много открытий.")}</strong><p>${ht("It’s 22° in Yerevan. Perfect for a stroll, a fresh lavash, and a little adventure. Shall we?", "В Ереване +22°. Идеально для прогулки, свежего лаваша и маленького приключения. Пойдём?")}</p><span class="weather-line">☀ ${ht("Yerevan · Sunny · sample weather", "Ереван · Солнечно · пример погоды")}</span></div><button class="ara-greeting" data-open-concierge>${ht("Let’s explore together", "Давайте исследовать вместе")} ↗</button></div><button class="ara-portrait" data-open-concierge aria-label="Ask Ara"><img src="${araSrc()}" alt="Ara, your Armenian robot guide" width="1024" height="1024"><span class="ara-name">${ht("YOUR LOCAL FRIEND", "ВАШ МЕСТНЫЙ ДРУГ")}</span></button></section>
+ <section class="ara-welcome"><div class="ara-welcome-copy"><p class="ara-intro">${ht("BAREV! I’M ARA", "БАРЕВ! Я АРА")} <span>✦</span></p><h1>${ht("Your Armenian", "Ваш армянский")}<br><em>${ht("friend, Ara.", "друг Ара.")}</em></h1><div class="ara-speech">${
+   STORE_BUILD
+     ? `<strong>${ht("A lot to discover today.", "Сегодня много открытий.")}</strong><p>${ht("Your day is planned below. Ask me about food, sights or your first day in Armenia.", "Ваш день расписан ниже. Спросите меня о еде, достопримечательностях или первом дне в Армении.")}</p>`
+     : `<strong>${ht("A little sunshine. A lot to discover.", "Немного солнца. Много открытий.")}</strong><p>${ht("It’s 22° in Yerevan. Perfect for a stroll, a fresh lavash, and a little adventure. Shall we?", "В Ереване +22°. Идеально для прогулки, свежего лаваша и маленького приключения. Пойдём?")}</p><span class="weather-line">☀ ${ht("Yerevan · Sunny · sample weather", "Ереван · Солнечно · пример погоды")}</span>`
+ }</div><button class="ara-greeting" data-open-concierge>${ht("Let’s explore together", "Давайте исследовать вместе")} ↗</button></div><button class="ara-portrait" data-open-concierge aria-label="Ask Ara"><img src="${araSrc()}" alt="Ara, your Armenian robot guide" width="1024" height="1024"><span class="ara-name">${ht("YOUR LOCAL FRIEND", "ВАШ МЕСТНЫЙ ДРУГ")}</span></button></section>
  <div class="haiq-content">${dealStoriesTemplate()}
- <section class="nearby-section"><div class="haiq-section-head"><h2>${ht("Near me now", "Рядом со мной")}</h2><span>${ht("Yerevan · sample distances", "Ереван · пример расстояний")}</span></div><div id="nearbyDeck">${nearbyTemplate()}</div></section>
-<div class="quick-actions"><button data-screen-target="dealsScreen"><span>♧</span>${ht("Deals", "Скидки")}<small>${ht("Little local perks", "Местные бонусы")}</small></button><button data-nearby-open><span>${ICON.pin}</span>${ht("Nearby", "Рядом")}<small>${ht("Right around you", "Прямо рядом с вами")}</small></button><button data-open-concierge><span><img src="${araSrc()}" alt="" width="1024" height="1024"></span>${ht("Ask Ara", "Спросить Ару")}<small>${ht("I know a few things", "Я кое-что знаю")}</small></button></div>
+ <section class="nearby-section"><div class="haiq-section-head"><h2>${ht("Near me now", "Рядом со мной")}</h2><span>${STORE_BUILD ? ht("From Yerevan centre", "От центра Еревана") : ht("Yerevan · sample distances", "Ереван · пример расстояний")}</span></div><div id="nearbyDeck">${nearbyTemplate()}</div></section>
+<div class="quick-actions">${STORE_BUILD ? `<button data-screen-target="mapScreen"><span>${ICON.nav}</span>${ht("Map", "Карта")}<small>${ht("Today’s route", "Маршрут на сегодня")}</small></button>` : `<button data-screen-target="dealsScreen"><span>♧</span>${ht("Deals", "Скидки")}<small>${ht("Little local perks", "Местные бонусы")}</small></button>`}<button data-nearby-open><span>${ICON.pin}</span>${ht("Nearby", "Рядом")}<small>${ht("Right around you", "Прямо рядом с вами")}</small></button><button data-open-concierge><span><img src="${araSrc()}" alt="" width="1024" height="1024"></span>${ht("Ask Ara", "Спросить Ару")}<small>${ht("I know a few things", "Я кое-что знаю")}</small></button></div>
  <div class="today-grid">
- <section class="today-route"><div class="haiq-section-head"><h2>${ht("Your day, at a glance", "Ваш день вкратце")}</h2><span>${ht("Day", "День")} ${d + 1}/${state.plan.length}</span></div><article class="daily-card"><p class="eyebrow">${ht("NEXT UP", "СЛЕДУЮЩАЯ ОСТАНОВКА")} · ${next ? fmtTime(next.arrive) : "09:00"}</p><h3>${next ? escapeHtml(next.entity.name) : "Yerevan"}</h3><p>${ht("A little history. A fresh perspective.", "Немного истории. Свежий взгляд.")}</p><ol>${p.stops
-   .slice(0, 3)
+ <section class="today-route"><div class="haiq-section-head"><h2>${ht("Your day, at a glance", "Ваш день вкратце")}</h2><span>${ht("Day", "День")} ${d + 1}/${state.plan.length}</span></div><article class="daily-card"><p class="eyebrow">${up.label}</p><h3>${escapeHtml(up.name)}</h3><p>${ht("A little history. A fresh perspective.", "Немного истории. Свежий взгляд.")}</p><ol>${up.stops
+   .slice(up.from, up.from + 3)
    .map(
      (s, i) =>
-       `<li><span>${i + 1}</span><button class="detail-button" data-id="${s.entity.id}"><strong>${escapeHtml(shortName(s.entity))}</strong><small>${fmtTime(s.arrive)} · ${fmtDur(s.duration)}</small></button></li>`,
+       `<li><span>${up.from + i + 1}</span><button class="detail-button" data-id="${s.entity.id}"><strong>${escapeHtml(shortName(s.entity))}</strong><small>${fmtTime(s.arrive)} · ${fmtDur(s.duration)}</small></button></li>`,
    )
    .join(
      "",
    )}</ol><button class="text-link" data-screen-target="mapScreen">${ht("See today’s route", "Маршрут на сегодня")} ↗</button></article></section></div>
 
- <button class="first-day-banner" data-first-day><span class="first-day-symbol">բ</span><span><small>${ht("JUST LANDED?", "ТОЛЬКО ПРИЛЕТЕЛИ?")}</small><strong>${ht("First day in Armenia", "Первый день в Армении")}</strong><p>${ht("Get connected. Get around. Feel at home.", "Связь. Транспорт. Чувствуйте себя дома.")}</p></span>${ICON.chevron}</button><p class="prototype-note">${ht("A little preview of Armenia · offers & live info are illustrative", "Небольшой пример Армении · скидки и текущие данные иллюстративны")}</p></div>`;
+ <button class="first-day-banner" data-first-day><span class="first-day-symbol">բ</span><span><small>${ht("JUST LANDED?", "ТОЛЬКО ПРИЛЕТЕЛИ?")}</small><strong>${ht("First day in Armenia", "Первый день в Армении")}</strong><p>${ht("Get connected. Get around. Feel at home.", "Связь. Транспорт. Чувствуйте себя дома.")}</p></span>${ICON.chevron}</button>${STORE_BUILD ? "" : `<p class="prototype-note">${ht("A little preview of Armenia · offers & live info are illustrative", "Небольшой пример Армении · скидки и текущие данные иллюстративны")}</p>`}</div>`;
 }
 function dealPhoto(c) {
   return c.id === "coffee"
@@ -2938,6 +3032,7 @@ function dealPhoto(c) {
       : foodSrc();
 }
 function dealStoriesTemplate() {
+  if (STORE_BUILD) return "";
   return `<section class="deal-stories"><div class="haiq-section-head"><h2>${ht("Local little perks", "Местные бонусы")}</h2><button class="text-link" data-screen-target="dealsScreen">${ht("All deals", "Все скидки")} ↗</button></div><div class="story-row">${coupons.map((c) => `<button class="deal-circle" data-deal-story="${c.id}" aria-label="${c.partner} −${c.off}%"><span class="story-ring"><img src="${dealPhoto(c)}" alt="${c.partner}" width="100" height="100"><b>−${c.off}%</b></span><span class="story-partner">${c.partner}</span></button>`).join("")}</div></section>`;
 }
 function showDealStory(id) {
@@ -2959,7 +3054,7 @@ function nearbyTemplate() {
     ["A lovely place for an evening stroll.", "Отличное место для вечерней прогулки."],
     ["Fresh lavash? Always a good idea.", "Свежий лаваш? Всегда хорошая идея."],
   ];
-  return `<div class="nearby-ara"><img src="${araSrc()}" alt="Ara" width="56" height="56"><p>${comments[i][haiq.lang === "ru" ? 1 : 0]}</p></div><div class="nearby-stack"><div class="stack-under stack-under-back"></div><div class="stack-under"></div><article class="nearby-card" data-swipe-card><div class="nearby-photo"><img draggable="false" src="${n.id === "mirzoyan-library" ? courtyardSrc() : n.id === "lavash-restaurant" ? foodSrc() : "/assets/garni-temple-hero.jpg"}" alt="${escapeHtml(n.title[haiq.lang === "ru" ? 1 : 0])}" width="1200" height="800"><span>${n.type[haiq.lang === "ru" ? 1 : 0]}</span><b class="nearby-distance">${ht(i === 0 ? "600 m" : i === 1 ? "800 m" : "350 m", i === 0 ? "600 м" : i === 1 ? "800 м" : "350 м")}</b></div><div class="nearby-copy"><span class="eyebrow">${ht("ARA’S PICK", "ВЫБОР АРЫ")} · ${i + 1}/${nearbyItems.length}</span><h3>${n.title[haiq.lang === "ru" ? 1 : 0]}</h3><p>${n.sub[haiq.lang === "ru" ? 1 : 0]}</p></div></article></div><div class="nearby-controls"><button class="skip-nearby" data-nearby-skip aria-label="${ht("Next place", "Следующее место")}" title="${ht("Next place", "Следующее место")}">×</button><span>${ht("A little discovery, just for you", "Маленькое открытие для вас")}</span><button class="add-nearby" data-nearby-add aria-label="${ht("Add to today", "Добавить на сегодня")}" title="${ht("Add to today", "Добавить на сегодня")}">${inPlan(n.id) ? "✓" : "+"}</button></div>`;
+  return `<div class="nearby-ara"><img src="${araSrc()}" alt="Ara" width="56" height="56"><p>${comments[i][haiq.lang === "ru" ? 1 : 0]}</p></div><div class="nearby-stack"><div class="stack-under stack-under-back"></div><div class="stack-under"></div><article class="nearby-card" data-swipe-card><div class="nearby-photo"><img draggable="false" src="${n.id === "mirzoyan-library" ? courtyardSrc() : n.id === "lavash-restaurant" ? foodSrc() : n.id === "republic-square" ? "/assets/republic-square-yerevan.jpg" : "/assets/garni-temple-hero.jpg"}" alt="${escapeHtml(n.title[haiq.lang === "ru" ? 1 : 0])}" width="1200" height="800"><span>${n.type[haiq.lang === "ru" ? 1 : 0]}</span><b class="nearby-distance">${ht(i === 0 ? "600 m" : i === 1 ? "800 m" : "350 m", i === 0 ? "600 м" : i === 1 ? "800 м" : "350 м")}</b></div><div class="nearby-copy"><span class="eyebrow">${ht("ARA’S PICK", "ВЫБОР АРЫ")} · ${i + 1}/${nearbyItems.length}</span><h3>${n.title[haiq.lang === "ru" ? 1 : 0]}</h3><p>${n.sub[haiq.lang === "ru" ? 1 : 0]}</p></div></article></div><div class="nearby-controls"><button class="skip-nearby" data-nearby-skip aria-label="${ht("Next place", "Следующее место")}" title="${ht("Next place", "Следующее место")}">×</button><span>${ht("A little discovery, just for you", "Маленькое открытие для вас")}</span><button class="add-nearby" data-nearby-add aria-label="${ht("Add to today", "Добавить на сегодня")}" title="${ht("Add to today", "Добавить на сегодня")}">${inPlan(n.id) ? "✓" : "+"}</button></div>`;
 }
 function renderHaiqDeals() {
   const list = coupons.filter((c) => haiq.filter === "all" || c.category === haiq.filter);
@@ -3000,15 +3095,25 @@ function showCoupon(id) {
 }
 function showFirstDay() {
   $("#haiqDetail").innerHTML =
-    `<div class="guide-content"><p class="eyebrow">${ht("BAREV, ARMENIA", "БАРЕВ, АРМЕНИЯ")}</p><h2 class="display-sm">${ht("First day in Armenia", "Первый день в Армении")}</h2><p class="mock-note">${ht("Illustrative information · verify live details before travel", "Пример данных · проверяйте актуальные сведения перед поездкой")}</p><div class="guide-list"><article><span>◉</span><div><h3>eSIM</h3><p>${ht("Compare Armenia data plans and check your phone’s eSIM compatibility.", "Сравните тарифы для Армении и проверьте поддержку eSIM на телефоне.")}</p><a class="text-link" href="https://www.airalo.com/armenia-esim" target="_blank" rel="noreferrer">Airalo ↗</a></div></article><article><span>֏</span><div><h3>${ht("Today’s AMD rate", "Курс AMD сегодня")}</h3><p>1 USD ≈ 387 AMD · 1 EUR ≈ 425 AMD</p><small>${ht("Sample rates, not today’s market rates.", "Пример курса, не текущий рыночный курс.")}</small></div></article><article><span>${ICON.car}</span><div><h3>${ht("Upper Lars border", "Граница Верхний Ларс")}</h3><p>${ht("Live status unavailable in this prototype. Weather and queues can change quickly; check official updates before departure.", "В этом примере нет текущего статуса. Погода и очереди быстро меняются — проверяйте официальные сведения перед выездом.")}</p><a class="text-link" href="https://www.rs.ge/" target="_blank" rel="noreferrer">${ht("Georgia Revenue Service", "Служба доходов Грузии")} ↗</a></div></article><article><span>${ICON.nav}</span><div><h3>Yandex Go</h3><p>${ht("A ride from the airport or around Yerevan. Confirm your fare in the app.", "Поездка из аэропорта или по Еревану. Проверяйте стоимость в приложении.")}</p><a class="text-link" href="https://go.yandex/" target="_blank" rel="noreferrer">${ht("Open Yandex Go", "Открыть Yandex Go")} ↗</a></div></article><article><span>բ</span><div><h3>${ht("A few useful words", "Полезные слова")}</h3><dl class="phrases"><div><dt>Barev · Բարև</dt><dd>${ht("Hello", "Здравствуйте")}</dd></div><div><dt>Shnorhakalutyun · Շնորհակալություն</dt><dd>${ht("Thank you", "Спасибо")}</dd></div><div><dt>Inch arje? · Ի՞նչ արժե</dt><dd>${ht("How much?", "Сколько стоит?")}</dd></div><div><dt>Ayo / Voch · Այո / Ոչ</dt><dd>${ht("Yes / No", "Да / Нет")}</dd></div></dl></div></article></div></div>`;
+    `<div class="guide-content"><p class="eyebrow">${ht("BAREV, ARMENIA", "БАРЕВ, АРМЕНИЯ")}</p><h2 class="display-sm">${ht("First day in Armenia", "Первый день в Армении")}</h2><p class="mock-note">${STORE_BUILD ? ht("Check live details before you travel", "Проверяйте актуальные сведения перед поездкой") : ht("Illustrative information · verify live details before travel", "Пример данных · проверяйте актуальные сведения перед поездкой")}</p><div class="guide-list"><article><span>◉</span><div><h3>eSIM</h3><p>${ht("Compare Armenia data plans and check your phone’s eSIM compatibility.", "Сравните тарифы для Армении и проверьте поддержку eSIM на телефоне.")}</p><a class="text-link" href="https://www.airalo.com/armenia-esim" target="_blank" rel="noreferrer">Airalo ↗</a></div></article><article><span>֏</span><div>${STORE_BUILD ? `<h3>${ht("Money", "Деньги")}</h3><p>${ht("Armenia uses the dram (AMD). Cards work in most of Yerevan; carry some cash for markets, taxis and villages. Check the current rate at a bank or exchange office.", "Валюта Армении — драм (AMD). В Ереване почти везде принимают карты; наличные пригодятся на рынках, в такси и сёлах. Актуальный курс смотрите в банке или обменнике.")}</p>` : `<h3>${ht("Today’s AMD rate", "Курс AMD сегодня")}</h3><p>1 USD ≈ 387 AMD · 1 EUR ≈ 425 AMD</p><small>${ht("Sample rates, not today’s market rates.", "Пример курса, не текущий рыночный курс.")}</small>`}</div></article><article><span>${ICON.car}</span><div><h3>${ht("Upper Lars border", "Граница Верхний Ларс")}</h3><p>${STORE_BUILD ? ht("Weather and queues can change quickly; check official updates before departure.", "Погода и очереди быстро меняются — проверяйте официальные сведения перед выездом.") : ht("Live status unavailable in this prototype. Weather and queues can change quickly; check official updates before departure.", "В этом примере нет текущего статуса. Погода и очереди быстро меняются — проверяйте официальные сведения перед выездом.")}</p><a class="text-link" href="https://www.rs.ge/" target="_blank" rel="noreferrer">${ht("Georgia Revenue Service", "Служба доходов Грузии")} ↗</a></div></article><article><span>${ICON.nav}</span><div><h3>Yandex Go</h3><p>${ht("A ride from the airport or around Yerevan. Confirm your fare in the app.", "Поездка из аэропорта или по Еревану. Проверяйте стоимость в приложении.")}</p><a class="text-link" href="https://go.yandex/" target="_blank" rel="noreferrer">${ht("Open Yandex Go", "Открыть Yandex Go")} ↗</a></div></article><article><span>բ</span><div><h3>${ht("A few useful words", "Полезные слова")}</h3><dl class="phrases"><div><dt>Barev · Բարև</dt><dd>${ht("Hello", "Здравствуйте")}</dd></div><div><dt>Shnorhakalutyun · Շնորհակալություն</dt><dd>${ht("Thank you", "Спасибо")}</dd></div><div><dt>Inch arje? · Ի՞նչ արժե</dt><dd>${ht("How much?", "Сколько стоит?")}</dd></div><div><dt>Ayo / Voch · Այո / Ոչ</dt><dd>${ht("Yes / No", "Да / Нет")}</dd></div></dl></div></article></div></div>`;
   $("#haiqDialog").showModal();
 }
 function araReply(text) {
   const q = text.toLowerCase();
+  if (STORE_BUILD && /скид|купон|deal|coupon/.test(q))
+    return ht(
+      "No discounts in the app yet. For a good meal, try Lavash Restaurant in central Yerevan, or coffee in the Mirzoyan Library courtyard.",
+      "Скидок в приложении пока нет. Вкусно поесть можно в ресторане Lavash в центре Еревана, а кофе выпить во дворике библиотеки Мирзояна.",
+    );
   if (/скид|купон|deal|coupon/.test(q))
     return ht(
       "A little local perk: our sample Lavash coupon takes 20% off. Find it in Deals, then keep the QR in your wallet. These are illustrative offers, not redeemable coupons.",
       "Местный бонус: пример купона Lavash со скидкой 20%. Найдите его в «Скидках» и сохраните QR в кошельке. Это пример, купон не действует.",
+    );
+  if (STORE_BUILD && /esim|интернет|связ|rate|курс|ларс|border/.test(q))
+    return ht(
+      "Open First day in Armenia for eSIM options, money tips, Upper Lars guidance and Yandex Go.",
+      "Откройте «Первый день в Армении»: eSIM, советы про деньги, Верхний Ларс и Yandex Go.",
     );
   if (/esim|интернет|связ|rate|курс|ларс|border/.test(q))
     return ht(
@@ -3020,10 +3125,20 @@ function araReply(text) {
       "A rainy day is perfect for Matenadaran, a cozy café or Armenian comfort food. Save the mountain views for a clear day!",
       "Дождливый день идеален для Матенадарана, уютного кафе и армянской кухни. Горные виды оставим на ясный день!",
     );
+  if (STORE_BUILD && /food|wine|еда|вино|есть|coffee|кофе/.test(q))
+    return ht(
+      "I’d start with fresh lavash, dolma and a good Armenian coffee. Lavash and the Mirzoyan Library courtyard are lovely picks; find them in Nearby.",
+      "Начните со свежего лаваша, долмы и армянского кофе. Lavash и дворик библиотеки Мирзояна — отличный выбор, они в разделе «Рядом».",
+    );
   if (/food|wine|еда|вино|есть|coffee|кофе/.test(q))
     return ht(
       "I’d start with fresh lavash, dolma and a good Armenian coffee. Lavash and Mirzoyan Library are lovely picks — find them in Nearby or Deals.",
       "Начните со свежего лаваша, долмы и армянского кофе. Lavash и библиотека Мирзояна — отличный выбор. Загляните в «Рядом» или «Скидки».",
+    );
+  if (STORE_BUILD)
+    return ht(
+      "Barev! I’m Ara. Your route is ready in My Trip, and I’ve picked a few discoveries in Nearby. Ask me about food, rain or your first day in Armenia.",
+      "Барев! Я Ара. Ваш маршрут готов в «Моей поездке», а в «Рядом» есть мои рекомендации. Спросите про еду, дождь или первый день в Армении.",
     );
   return ht(
     "Barev! I’m Ara. Your route is ready in My Trip, and I’ve picked a few discoveries in Nearby. Ask me about food, rain, coupons or your first day in Armenia.",
@@ -3189,15 +3304,19 @@ function localizeHaiq() {
     "Your local friend",
     "Ваш местный друг",
   );
-  document.querySelector('[data-i18n="Sample replies · not live AI"]').textContent = ht(
-    "Sample replies · not live AI",
-    "Примеры ответов · не настоящий ИИ",
-  );
+  document.querySelector('[data-i18n="Sample replies · not live AI"]').textContent = STORE_BUILD
+    ? ht("Quick answers to common travel questions", "Быстрые ответы на частые вопросы о поездке")
+    : ht("Sample replies · not live AI", "Примеры ответов · не настоящий ИИ");
 }
 const originalTripRender = renderMyTrip;
 renderMyTrip = function () {
   originalTripRender();
-  $("#tripRoot").insertAdjacentHTML("afterbegin", walletTemplate());
+  if (!STORE_BUILD) $("#tripRoot").insertAdjacentHTML("afterbegin", walletTemplate());
+  // Required for App Review: the privacy policy must be reachable inside the app.
+  $("#tripRoot").insertAdjacentHTML(
+    "beforeend",
+    `<p class="legal-links"><a href="${apiUrl("/privacy")}" target="_blank" rel="noreferrer">${ht("Privacy", "Конфиденциальность")}</a> · <a href="${apiUrl("/support")}" target="_blank" rel="noreferrer">${ht("Support", "Поддержка")}</a></p>`,
+  );
 };
 renderToday = renderHaiqToday;
 renderDeals = renderHaiqDeals;
@@ -3346,6 +3465,7 @@ document
     "afterbegin",
     `<header class="haiq-header"><a class="haiq-logo" href="/" aria-label="HAIQ home"><span class="haiq-logo-mark">հ</span><span><strong>HAIQ<span class="logo-dot">.</span></strong><small>ARMENIA TRAVEL GUIDE</small></span></a><div class="haiq-header-right"><span class="location-label">${ICON.pin} Yerevan, Armenia</span><div class="lang-switch" aria-label="Language"><button data-lang="en" class="active" aria-pressed="true">EN</button><button data-lang="ru" aria-pressed="false">RU</button></div></div></header>`,
   );
+if (STORE_BUILD) document.querySelector('.nav-item[data-screen="dealsScreen"]')?.remove();
 if (!state.plan.length) buildPlan(false);
 persistTrip();
 addMessage("assistant", araReply(""));
@@ -3355,6 +3475,20 @@ setSheet("half");
 document.body.dataset.screen = "homeScreen";
 renderAll();
 loadGooglePlacesEnrichment();
+// Keep "next stop" in step with the clock while the app stays open or comes back to the front.
+const progressKey = () => {
+  const d = currentDayIndex();
+  return state.plan.length ? `${d}:${JSON.stringify(dayProgress(d, dayPlan(state.plan[d])))}` : "";
+};
+let lastProgress = progressKey();
+const refreshProgress = () => {
+  if (document.hidden) return;
+  const key = progressKey();
+  if (key !== lastProgress) renderAll(false);
+  lastProgress = key;
+};
+setInterval(refreshProgress, 60000);
+document.addEventListener("visibilitychange", refreshProgress);
 export {
   state,
   dayPlan,

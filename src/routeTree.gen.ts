@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicPlacesEnrichmentRouteImport } from './routes/api/public/places-enrichment'
 import { Route as ApiPublicRoadRouteRouteImport } from './routes/api/public/road-route'
@@ -17,6 +19,16 @@ import { Route as ApiPublicRoadRouteRouteImport } from './routes/api/public/road
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
@@ -38,12 +50,16 @@ const ApiPublicRoadRouteRoute = ApiPublicRoadRouteRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/support': typeof SupportRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/support': typeof SupportRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -51,6 +67,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/support': typeof SupportRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -59,18 +77,24 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/privacy'
+    | '/support'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/privacy'
+    | '/support'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
   id:
     | '__root__'
     | '/'
+    | '/privacy'
+    | '/support'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -78,6 +102,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PrivacyRoute: typeof PrivacyRoute
+  SupportRoute: typeof SupportRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicPlacesEnrichmentRoute: typeof ApiPublicPlacesEnrichmentRoute
   ApiPublicRoadRouteRoute: typeof ApiPublicRoadRouteRoute
@@ -90,6 +116,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/place-photo': {
@@ -118,6 +158,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PrivacyRoute: PrivacyRoute,
+  SupportRoute: SupportRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicPlacesEnrichmentRoute: ApiPublicPlacesEnrichmentRoute,
   ApiPublicRoadRouteRoute: ApiPublicRoadRouteRoute,

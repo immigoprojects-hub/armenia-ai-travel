@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/server.test.mjs public/legacy/haiq.test.mjs",
+    "test": "node --test tests/server.test.mjs public/legacy/haiq.test.mjs public/legacy/next-stop.test.mjs",
     "test:e2e": "playwright test",
     "format": "prettier --write ."
   },
