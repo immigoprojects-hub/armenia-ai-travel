@@ -801,6 +801,30 @@ function armeniaToday() {
   const get = (type) => parts.find((p) => p.type === type).value;
   return new Date(`${get("year")}-${get("month")}-${get("day")}T00:00:00Z`);
 }
+function armeniaNowMinutes() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Yerevan",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  return get("hour") * 60 + get("minute");
+}
+/** Position of `now` (minutes after midnight) in a day's stops: the stop being visited ("now"),
+    the next one ("upcoming"), or none left ("done", index -1). */
+function stopProgress(stops, now) {
+  const index = stops.findIndex((s) => s.depart > now);
+  if (index === -1) return { index: -1, state: stops.length ? "done" : "upcoming" };
+  return { index, state: stops[index].arrive <= now ? "now" : "upcoming" };
+}
+/** Next stop for a day. Only today's day of a dated trip follows the clock; any other day
+    (or a trip without dates) starts at its first stop. */
+function dayProgress(dayIndex, p) {
+  const live = tripPhase() === "live" && dayIndex === currentDayIndex();
+  if (!live) return { index: p.stops.length ? 0 : -1, state: "upcoming" };
+  return stopProgress(p.stops, armeniaNowMinutes());
+}
 function currentDayIndex() {
   const start = tripStart();
   if (!start || !state.plan.length) return 0;
@@ -1701,7 +1725,7 @@ function renderMyTrip() {
   const d = currentDayIndex();
   const today = state.plan[d];
   const tp = dayPlan(today);
-  const next = tp.stops[0];
+  const next = tp.stops[dayProgress(d, tp).index];
   const total = state.plan.reduce((sum, day) => sum + (day.estimatedCost || 0), 0);
   const issues = tripIssues();
   const bookings = [
@@ -1951,6 +1975,7 @@ function drawMap(fit) {
 
   const drawDay = (day, i, emphasis) => {
     const p = dayPlan(day);
+    const nextIndex = dayProgress(i, p).index;
     const pts = [p.origin, ...p.stops.map((s) => coords(s.entity))];
     if (p.returnLeg) pts.push(BASE);
     const road = roadRoute(day);
@@ -1969,7 +1994,7 @@ function drawMap(fit) {
       const c = coords(s.entity);
       boundsPts.push([c.lat, c.lng]);
       const selected = state.selectedStop === s.entity.id;
-      const isNext = emphasis && n === 0 && !state.mapWhole;
+      const isNext = emphasis && n === nextIndex && !state.mapWhole;
       const label = state.mapWhole ? `${i + 1}` : `${n + 1}`;
       const marker = L.marker([c.lat, c.lng], {
         icon: divIcon(
@@ -2189,6 +2214,7 @@ function renderMap(fit = false) {
   const day = state.plan[dIndex];
   const p = dayPlan(day);
   const isToday = dIndex === currentDayIndex();
+  const nextIndex = dayProgress(dIndex, p).index;
 
   head.innerHTML = `
     <div class="map-seg">
@@ -2230,7 +2256,7 @@ function renderMap(fit = false) {
       </div>
       <div class="route-ribbon">
         <span class="ribbon-now">Now</span>
-        ${p.stops.map((s, i) => `<span class="ribbon-arrow">→</span><button class="ribbon-stop ${state.selectedStop === s.entity.id ? "active" : ""} ${i === 0 ? "is-next" : ""}" data-stop="${s.entity.id}" data-stop-day="${dIndex}">${escapeHtml(stopRole(s.entity))}</button>`).join("")}
+        ${p.stops.map((s, i) => `<span class="ribbon-arrow">→</span><button class="ribbon-stop ${state.selectedStop === s.entity.id ? "active" : ""} ${i === nextIndex ? "is-next" : ""}" data-stop="${s.entity.id}" data-stop-day="${dIndex}">${escapeHtml(stopRole(s.entity))}</button>`).join("")}
       </div>
       ${state.preview ? previewTemplate(day, p) : sel ? selectedTemplate(sel, p, day) : ""}
       <ol class="sheet-timeline">
@@ -2240,7 +2266,7 @@ function renderMap(fit = false) {
           <li class="${state.selectedStop === s.entity.id ? "active" : ""}" data-stop-focus="${s.entity.id}">
             ${`<span class="tl-leg">${fmtDur(s.leg)} from ${escapeHtml(s.from)}</span>`}
             <button class="tl-row" data-stop="${s.entity.id}" data-stop-day="${dIndex}">
-              <span class="tl-num ${i === 0 ? "is-next" : ""}">${i + 1}</span>
+              <span class="tl-num ${i === nextIndex ? "is-next" : ""}">${i + 1}</span>
               <span class="tl-copy"><strong>${escapeHtml(s.entity.name)}</strong><small>${fmtTime(s.arrive)}${s.duration ? ` · ${fmtDur(s.duration)}` : " · overnight"}</small></span>
             </button>
           </li>`,
@@ -2907,22 +2933,59 @@ const nearbyItems = [
     sub: ["Lavash · 350 m · 20% off sample offer", "Lavash · 350 м · пример скидки 20%"],
   },
 ];
+function haiqNextUp(d, p) {
+  const prog = dayProgress(d, p);
+  if (prog.state === "done") {
+    const tomorrowPlan = state.plan[d + 1] && dayPlan(state.plan[d + 1]);
+    const tomorrow = tomorrowPlan?.stops[0];
+    return tomorrow
+      ? {
+          label: `${ht("TOMORROW", "ЗАВТРА")} · ${fmtTime(tomorrow.arrive)}`,
+          name: tomorrow.entity.name,
+          from: 0,
+          stops: tomorrowPlan.stops,
+        }
+      : {
+          label: ht("TRIP COMPLETE", "ПОЕЗДКА ЗАВЕРШЕНА"),
+          name: ht("See you again", "До новых встреч"),
+          from: 0,
+          stops: p.stops,
+        };
+  }
+  const next = p.stops[prog.index];
+  if (!next)
+    return {
+      label: `${ht("NEXT UP", "СЛЕДУЮЩАЯ ОСТАНОВКА")} · 09:00`,
+      name: "Yerevan",
+      from: 0,
+      stops: p.stops,
+    };
+  return {
+    label:
+      prog.state === "now"
+        ? `${ht("NOW", "СЕЙЧАС")} · ${ht("until", "до")} ${fmtTime(next.depart)}`
+        : `${ht("NEXT UP", "СЛЕДУЮЩАЯ ОСТАНОВКА")} · ${fmtTime(next.arrive)}`,
+    name: next.entity.name,
+    from: prog.index,
+    stops: p.stops,
+  };
+}
 function renderHaiqToday() {
   const d = currentDayIndex(),
     day = state.plan[d],
     p = dayPlan(day),
-    next = p.stops[0];
+    up = haiqNextUp(d, p);
   $("#todayRoot").innerHTML = `
  <section class="ara-welcome"><div class="ara-welcome-copy"><p class="ara-intro">${ht("BAREV! I’M ARA", "БАРЕВ! Я АРА")} <span>✦</span></p><h1>${ht("Your Armenian", "Ваш армянский")}<br><em>${ht("friend, Ara.", "друг Ара.")}</em></h1><div class="ara-speech"><strong>${ht("A little sunshine. A lot to discover.", "Немного солнца. Много открытий.")}</strong><p>${ht("It’s 22° in Yerevan. Perfect for a stroll, a fresh lavash, and a little adventure. Shall we?", "В Ереване +22°. Идеально для прогулки, свежего лаваша и маленького приключения. Пойдём?")}</p><span class="weather-line">☀ ${ht("Yerevan · Sunny · sample weather", "Ереван · Солнечно · пример погоды")}</span></div><button class="ara-greeting" data-open-concierge>${ht("Let’s explore together", "Давайте исследовать вместе")} ↗</button></div><button class="ara-portrait" data-open-concierge aria-label="Ask Ara"><img src="${araSrc()}" alt="Ara, your Armenian robot guide" width="1024" height="1024"><span class="ara-name">${ht("YOUR LOCAL FRIEND", "ВАШ МЕСТНЫЙ ДРУГ")}</span></button></section>
  <div class="haiq-content">${dealStoriesTemplate()}
  <section class="nearby-section"><div class="haiq-section-head"><h2>${ht("Near me now", "Рядом со мной")}</h2><span>${ht("Yerevan · sample distances", "Ереван · пример расстояний")}</span></div><div id="nearbyDeck">${nearbyTemplate()}</div></section>
 <div class="quick-actions"><button data-screen-target="dealsScreen"><span>♧</span>${ht("Deals", "Скидки")}<small>${ht("Little local perks", "Местные бонусы")}</small></button><button data-nearby-open><span>${ICON.pin}</span>${ht("Nearby", "Рядом")}<small>${ht("Right around you", "Прямо рядом с вами")}</small></button><button data-open-concierge><span><img src="${araSrc()}" alt="" width="1024" height="1024"></span>${ht("Ask Ara", "Спросить Ару")}<small>${ht("I know a few things", "Я кое-что знаю")}</small></button></div>
  <div class="today-grid">
- <section class="today-route"><div class="haiq-section-head"><h2>${ht("Your day, at a glance", "Ваш день вкратце")}</h2><span>${ht("Day", "День")} ${d + 1}/${state.plan.length}</span></div><article class="daily-card"><p class="eyebrow">${ht("NEXT UP", "СЛЕДУЮЩАЯ ОСТАНОВКА")} · ${next ? fmtTime(next.arrive) : "09:00"}</p><h3>${next ? escapeHtml(next.entity.name) : "Yerevan"}</h3><p>${ht("A little history. A fresh perspective.", "Немного истории. Свежий взгляд.")}</p><ol>${p.stops
-   .slice(0, 3)
+ <section class="today-route"><div class="haiq-section-head"><h2>${ht("Your day, at a glance", "Ваш день вкратце")}</h2><span>${ht("Day", "День")} ${d + 1}/${state.plan.length}</span></div><article class="daily-card"><p class="eyebrow">${up.label}</p><h3>${escapeHtml(up.name)}</h3><p>${ht("A little history. A fresh perspective.", "Немного истории. Свежий взгляд.")}</p><ol>${up.stops
+   .slice(up.from, up.from + 3)
    .map(
      (s, i) =>
-       `<li><span>${i + 1}</span><button class="detail-button" data-id="${s.entity.id}"><strong>${escapeHtml(shortName(s.entity))}</strong><small>${fmtTime(s.arrive)} · ${fmtDur(s.duration)}</small></button></li>`,
+       `<li><span>${up.from + i + 1}</span><button class="detail-button" data-id="${s.entity.id}"><strong>${escapeHtml(shortName(s.entity))}</strong><small>${fmtTime(s.arrive)} · ${fmtDur(s.duration)}</small></button></li>`,
    )
    .join(
      "",
@@ -3355,6 +3418,20 @@ setSheet("half");
 document.body.dataset.screen = "homeScreen";
 renderAll();
 loadGooglePlacesEnrichment();
+// Keep "next stop" in step with the clock while the app stays open or comes back to the front.
+const progressKey = () => {
+  const d = currentDayIndex();
+  return state.plan.length ? `${d}:${JSON.stringify(dayProgress(d, dayPlan(state.plan[d])))}` : "";
+};
+let lastProgress = progressKey();
+const refreshProgress = () => {
+  if (document.hidden) return;
+  const key = progressKey();
+  if (key !== lastProgress) renderAll(false);
+  lastProgress = key;
+};
+setInterval(refreshProgress, 60000);
+document.addEventListener("visibilitychange", refreshProgress);
 export {
   state,
   dayPlan,
