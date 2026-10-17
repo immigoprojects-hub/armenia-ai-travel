@@ -3,10 +3,7 @@ import { useEffect } from "react";
 
 import appShellHtml from "../legacy/app-shell.html?raw";
 
-// Temporary visuals until final Ara artwork and partner photos arrive.
-const araImage = "/assets/ara.svg";
-const foodImage = "/assets/republic-square-yerevan.jpg";
-const courtyardImage = "/assets/cascade-complex-yerevan.jpg";
+const araImage = "/assets/ara.png";
 
 const LEGACY_SCRIPT_SRC = "/legacy/app.js";
 const LEGACY_STYLES_HREF = "/legacy/styles.css";
@@ -45,8 +42,6 @@ export const Route = createFileRoute("/")({
 function ArmeniaApp() {
   useEffect(() => {
     document.documentElement.dataset["araImage"] = araImage;
-    document.documentElement.dataset["foodImage"] = foodImage;
-    document.documentElement.dataset["courtyardImage"] = courtyardImage;
     if (document.querySelector(`script[src="${LEGACY_SCRIPT_SRC}"]`)) return;
     const script = document.createElement("script");
     script.type = "module";

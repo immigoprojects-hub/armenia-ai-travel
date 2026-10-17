@@ -3563,3 +3563,142 @@ a:focus-visible {
     will-change: auto;
   }
 }
+
+/* ==========================================================================
+   HAIQ polish pass — fixes from the first phone review
+   ========================================================================== */
+
+/* Floating Ara: Today already has Ara at the top, and on the map he covered the
+   itinerary sheet. Elsewhere he gets smaller and the content gets room below. */
+body[data-screen="homeScreen"] .ara-float,
+body[data-screen="mapScreen"] .ara-float {
+  display: none;
+}
+.ara-float img {
+  width: 60px;
+  height: 60px;
+}
+.ara-float span {
+  display: none;
+}
+.ara-float i {
+  right: 4px;
+  bottom: 4px;
+}
+main {
+  padding-bottom: calc(var(--nav-h) + var(--safe-b) + 96px);
+}
+
+/* Weather line stays readable without a sample label. */
+.weather-line {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Swipe controls: say what the two buttons do. */
+.nearby-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+.nearby-hint b {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--muted);
+}
+.nearby-hint b:last-child {
+  color: var(--wine);
+}
+
+/* Planner: explain the empty date field. */
+.date-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* My Trip: a readable list of days instead of an abstract zig-zag drawing. */
+.trip-days {
+  padding: 14px 16px 44px;
+}
+.trip-days ol {
+  display: grid;
+  gap: 2px;
+}
+.trip-days li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.trip-days li:last-child {
+  border-bottom: 0;
+}
+.trip-days li span {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wine);
+  border: 1.5px solid var(--wine);
+}
+.trip-days li.is-today span {
+  background: var(--wine);
+  color: var(--on-dark);
+}
+.trip-days li strong {
+  font-weight: 500;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trip-days li small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (max-width: 700px) {
+  /* The big HAIQ header belongs on Today; other screens get a slim bar, the map none. */
+  body:not([data-screen="homeScreen"]) .haiq-header {
+    height: 56px;
+  }
+  body:not([data-screen="homeScreen"]) .haiq-logo small,
+  body:not([data-screen="homeScreen"]) .location-label {
+    display: none;
+  }
+  body[data-screen="mapScreen"] .haiq-header {
+    display: none;
+  }
+
+  /* Ara at the top of Today: keep the whole figure inside the screen. */
+  .ara-portrait {
+    right: 8px;
+    width: 140px;
+    overflow: visible;
+  }
+  .ara-portrait img {
+    width: 140px;
+    height: 190px;
+  }
+
+  /* Near me now: a shorter card without the empty band under the text. */
+  #homeScreen .nearby-photo img {
+    height: 200px;
+  }
+  #homeScreen .nearby-copy {
+    min-height: 0;
+    padding: 16px 18px 18px;
+  }
+  #homeScreen .nearby-copy h3 {
+    font-size: 24px;
+  }
+}

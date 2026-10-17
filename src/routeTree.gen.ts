@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicAraChatRouteImport } from './routes/api/public/ara-chat'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicPlacesEnrichmentRouteImport } from './routes/api/public/places-enrichment'
 import { Route as ApiPublicRoadRouteRouteImport } from './routes/api/public/road-route'
@@ -17,6 +18,11 @@ import { Route as ApiPublicRoadRouteRouteImport } from './routes/api/public/road
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAraChatRoute = ApiPublicAraChatRouteImport.update({
+  id: '/api/public/ara-chat',
+  path: '/api/public/ara-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
@@ -38,12 +44,14 @@ const ApiPublicRoadRouteRoute = ApiPublicRoadRouteRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/ara-chat': typeof ApiPublicAraChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/ara-chat': typeof ApiPublicAraChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -51,6 +59,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/ara-chat': typeof ApiPublicAraChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -59,18 +68,21 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/public/ara-chat'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api/public/ara-chat'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
   id:
     | '__root__'
     | '/'
+    | '/api/public/ara-chat'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -78,6 +90,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicAraChatRoute: typeof ApiPublicAraChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicPlacesEnrichmentRoute: typeof ApiPublicPlacesEnrichmentRoute
   ApiPublicRoadRouteRoute: typeof ApiPublicRoadRouteRoute
@@ -90,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/ara-chat': {
+      id: '/api/public/ara-chat'
+      path: '/api/public/ara-chat'
+      fullPath: '/api/public/ara-chat'
+      preLoaderRoute: typeof ApiPublicAraChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/place-photo': {
@@ -118,6 +138,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicAraChatRoute: ApiPublicAraChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicPlacesEnrichmentRoute: ApiPublicPlacesEnrichmentRoute,
   ApiPublicRoadRouteRoute: ApiPublicRoadRouteRoute,
