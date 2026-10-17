@@ -139,3 +139,28 @@ test("All 30 details work and dates follow Armenia time; corrupted storage recov
   expect(checked.lastDay).toBe(checked.length - 1);
   expect(checked.phase).toBe("Trip complete");
 });
+
+test("Map keeps its place and draws visible route lines; long trips never repeat a day", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator(".next-card")).toBeVisible();
+  await page.locator(".bottom-nav").getByRole("button", { name: "Map", exact: true }).click();
+  await expect(page.locator(".pin-stop").nth(2)).toBeVisible({ timeout: 20000 });
+  const routeBox = await page.locator(".leaflet-overlay-pane svg").boundingBox();
+  expect(routeBox!.width).toBeGreaterThan(100);
+  await page.locator(".pin-stop").nth(2).click();
+  await page.waitForTimeout(800);
+  expect(await page.locator("#mapScreen").evaluate((el) => el.scrollTop)).toBe(0);
+
+  const days = await page.evaluate(async () => {
+    const app = await import("/legacy/app.js");
+    app.state.planner.days = 7;
+    app.buildPlan(false);
+    return app.state.plan.map((day: { clusterId: string }) => day.clusterId);
+  });
+  expect(days).toHaveLength(7);
+  expect(new Set(days.filter((id: string) => id !== "yerevan-free")).size).toBe(
+    days.filter((id: string) => id !== "yerevan-free").length,
+  );
+});

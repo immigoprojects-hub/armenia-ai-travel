@@ -62,7 +62,8 @@ img {
   display: block;
   max-width: 100%;
 }
-svg {
+/* Icon defaults; Leaflet draws route lines in its own full-size SVG, which must keep its size. */
+svg:where(:not(.leaflet-overlay-pane svg)) {
   width: 18px;
   height: 18px;
   fill: none;
@@ -591,6 +592,7 @@ main {
   gap: 12px;
   overflow-x: auto;
   padding: 14px 20px 4px;
+  scroll-padding-inline: 20px;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
 }
