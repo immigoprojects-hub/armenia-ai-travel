@@ -3563,3 +3563,13 @@ a:focus-visible {
     will-change: auto;
   }
 }
+.legal-links {
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+  padding: 24px 0 8px;
+}
+.legal-links a {
+  color: inherit;
+  text-decoration: underline;
+}

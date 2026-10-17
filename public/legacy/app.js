@@ -3261,6 +3261,11 @@ const originalTripRender = renderMyTrip;
 renderMyTrip = function () {
   originalTripRender();
   $("#tripRoot").insertAdjacentHTML("afterbegin", walletTemplate());
+  // Required for App Review: the privacy policy must be reachable inside the app.
+  $("#tripRoot").insertAdjacentHTML(
+    "beforeend",
+    `<p class="legal-links"><a href="${apiUrl("/privacy")}" target="_blank" rel="noreferrer">${ht("Privacy", "Конфиденциальность")}</a> · <a href="${apiUrl("/support")}" target="_blank" rel="noreferrer">${ht("Support", "Поддержка")}</a></p>`,
+  );
 };
 renderToday = renderHaiqToday;
 renderDeals = renderHaiqDeals;
