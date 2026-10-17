@@ -1,0 +1,90 @@
+name: Live iPhone check
+
+# Opens the live site on iPhone 15 and iPhone SE (WebKit, the engine behind iPhone Safari),
+# walks Today → Planner → My Trip → Map → Place details → Deals and reports whether the Map
+# route line uses real roads (solid) or the estimated fallback (dashed).
+# Results: the run summary, the job log, and the live-check-results branch (latest run's
+# summary.md + screenshots, readable on GitHub without downloading artifacts).
+on:
+  deployment_status:
+  schedule:
+    - cron: "0 5 * * *" # every day, 09:00 in Yerevan
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Site to check"
+        default: "https://mvp-v01.vercel.app"
+  pull_request:
+    paths:
+      - "live-check/**"
+      - ".github/workflows/live-check.yml"
+
+concurrency:
+  group: live-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  iphone:
+    # Vercel reports every deploy; only check successful production ones.
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # publishes the live-check-results branch
+    env:
+      LIVE_URL: ${{ inputs.url || 'https://mvp-v01.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - name: Let the production alias switch to the new deploy
+        if: github.event_name == 'deployment_status'
+        run: sleep 20
+      - name: Check live site on iPhone
+        id: check
+        run: npx playwright test -c live-check
+      - name: Report
+        if: always()
+        working-directory: live-check/results
+        run: |
+          {
+            echo "## Live iPhone check: ${{ steps.check.outcome }}"
+            echo
+            echo "Checked $(date -u '+%Y-%m-%d %H:%M UTC') · trigger: $GITHUB_EVENT_NAME · code ${GITHUB_SHA::7}"
+            echo
+            cat iphone-15/report.md iphone-se/report.md 2>/dev/null
+          } > summary.md
+          {
+            grep -v '^!\[' summary.md
+            echo
+            echo "Screenshots: https://github.com/$GITHUB_REPOSITORY/blob/live-check-results/summary.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "===== LIVE CHECK REPORT ====="
+          grep -v '^!\[' summary.md
+          echo "===== END LIVE CHECK REPORT ====="
+      - name: Publish screenshots to the live-check-results branch
+        if: always() && hashFiles('live-check/results/summary.md') != ''
+        continue-on-error: true
+        working-directory: live-check/results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Keep Vercel from trying to deploy this images-only branch.
+          echo '{ "git": { "deploymentEnabled": false } }' > vercel.json
+          git init -q -b live-check-results
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Live iPhone check (${{ steps.check.outcome }}) for ${GITHUB_SHA::7}"
+          # Single-commit branch owned by this workflow: each run replaces the previous one.
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" live-check-results
