@@ -87,9 +87,8 @@ async function chooseNavigationApp(dest) {
 function syncStatusBar() {
   const bars = plugin("SystemBars");
   if (!bars) return;
-  const dark = document.body?.dataset.screen === "homeScreen";
-  // DARK = light text for dark surfaces (Today); LIGHT = dark text for ivory screens.
-  bars.setStyle({ style: dark ? "DARK" : "LIGHT" }).catch(() => {});
+  // Every screen now opens with the ivory HAIQ header: LIGHT = dark status-bar text.
+  bars.setStyle({ style: "LIGHT" }).catch(() => {});
 }
 
 export function installNativeShell() {
@@ -112,8 +111,4 @@ export function installNativeShell() {
   );
 
   syncStatusBar();
-  new MutationObserver(syncStatusBar).observe(document.body, {
-    attributes: true,
-    attributeFilter: ["data-screen"],
-  });
 }

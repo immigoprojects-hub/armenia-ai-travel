@@ -2,13 +2,13 @@
   "appId": "com.armeniaai.travel",
   "appName": "Armenia AI",
   "webDir": "native/www",
-  "backgroundColor": "#211d22",
+  "backgroundColor": "#f7f2ea",
   "ios": {
     "contentInset": "never"
   },
   "plugins": {
     "SystemBars": {
-      "style": "DARK"
+      "style": "LIGHT"
     }
   }
 }
