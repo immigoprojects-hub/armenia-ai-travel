@@ -3078,6 +3078,62 @@ function tripSummary() {
     })
     .join("\n");
 }
+// Google lists weekdayDescriptions Monday first; JS getDay() starts on Sunday.
+function todayHoursLine(google, date = new Date()) {
+  const lines = google?.weekdayDescriptions;
+  if (!Array.isArray(lines) || lines.length !== 7) return "";
+  return String(lines[(date.getDay() + 6) % 7] || "");
+}
+// Real hours and ratings Ara may quote. Only places Google returned data for.
+function livePlacesSummary() {
+  return Object.keys(state.googlePlaces || {})
+    .map((id) => {
+      const google = state.googlePlaces[id]?.google;
+      if (!google) return "";
+      const open = google.openNow === true ? "open" : google.openNow === false ? "closed" : "?";
+      const hours = todayHoursLine(google).replace(/^[^:]+:\s*/, "") || "?";
+      const rating = google.rating
+        ? `${google.rating}★ (${google.userRatingCount || 0})`
+        : "no rating";
+      return `${id} | ${open} | ${hours} | ${rating}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+function runAraActions(actions) {
+  const done = [];
+  for (const action of Array.isArray(actions) ? actions : []) {
+    if (action?.type === "open_coupon") {
+      if (!coupons.some((c) => c.id === action.couponId)) continue;
+      $("#conciergeDialog")?.close();
+      showCoupon(action.couponId);
+      done.push("coupon");
+      continue;
+    }
+    const entity = getEntityById(action?.placeId);
+    if (!entity) continue;
+    if (action.type === "add_to_plan") {
+      const want = Number(action.day) - 1;
+      const dayIndex = Number.isInteger(want) && state.plan[want] ? want : currentDayIndex();
+      if (!state.plan[dayIndex]) continue;
+      if (!inPlan(entity.id)) addToDay(entity.id, dayIndex);
+      else showToast(ht(`${entity.name} is already in your trip`, `${entity.name} уже в поездке`));
+      done.push("add");
+    } else if (action.type === "show_on_map") {
+      $("#conciergeDialog")?.close();
+      openScreen("mapScreen");
+      const dayIndex = state.plan.findIndex((day) => day.stops.includes(entity.id));
+      if (dayIndex >= 0) selectStop(entity.id, dayIndex);
+      else openEntityDetail(entity.id);
+      done.push("map");
+    } else if (action.type === "open_place") {
+      $("#conciergeDialog")?.close();
+      openEntityDetail(entity.id);
+      done.push("place");
+    }
+  }
+  return done;
+}
 async function askAra(text) {
   try {
     const res = await fetch(apiUrl("/api/public/ara-chat"), {
@@ -3088,13 +3144,17 @@ async function askAra(text) {
         lang: haiq.lang,
         history: araHistory.slice(-8),
         trip: tripSummary(),
+        live: livePlacesSummary(),
       }),
       signal: AbortSignal.timeout(25000),
     });
     const data = res.ok ? await res.json() : null;
-    if (data && data.status === "ok" && data.reply) {
-      araHistory.push({ role: "user", text }, { role: "assistant", text: data.reply });
-      return data.reply;
+    if (data && data.status === "ok" && (data.reply || data.actions?.length)) {
+      const reply = data.reply || ht("Done!", "Готово!");
+      araHistory.push({ role: "user", text }, { role: "assistant", text: reply });
+      // Let the reply appear first, then act.
+      setTimeout(() => runAraActions(data.actions), 350);
+      return reply;
     }
   } catch {
     /* fall back to Ara's built-in answers */

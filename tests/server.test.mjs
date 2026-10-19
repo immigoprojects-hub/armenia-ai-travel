@@ -207,3 +207,30 @@ test("Routing asks ORS for segments and parses its real GeoJSON shape", async ()
     else delete process.env.ORS_API_KEY;
   }
 });
+
+const araCode = compile(
+  await readFile(new URL("../src/lib/ara.server.ts", import.meta.url), "utf8"),
+)
+  .replace(
+    "../../public/legacy/entities.js",
+    new URL("../public/legacy/entities.js", import.meta.url).href,
+  )
+  .replace("./api-guard.server", guard);
+const { toActions } = await import(uri(araCode));
+
+test("Ara tool calls become validated app actions", () => {
+  const known = armeniaEntities[0].id;
+  const actions = toActions([
+    { type: "text", text: "Done" },
+    { type: "tool_use", name: "add_to_plan", input: { place_id: known, day: 2 } },
+    { type: "tool_use", name: "add_to_plan", input: { place_id: "invented-place" } },
+    { type: "tool_use", name: "show_on_map", input: { place_id: known } },
+    { type: "tool_use", name: "open_coupon", input: { coupon_id: "free-money" } },
+    { type: "tool_use", name: "open_coupon", input: { coupon_id: "lavash" } },
+  ]);
+  assert.deepEqual(actions, [
+    { type: "add_to_plan", placeId: known, day: 2 },
+    { type: "show_on_map", placeId: known },
+    { type: "open_coupon", couponId: "lavash" },
+  ]);
+});
