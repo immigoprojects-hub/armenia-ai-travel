@@ -20,3 +20,9 @@
 - Google Places enrichment and the photo proxy live in `src/routes/api/public/` because
   external-facing endpoints must sit under `/api/public/*` to bypass the published-site auth wall.
 
+
+## Product vision
+
+- Read `VISION.md` before any product, design or content change. Every change must follow its principles:
+  simple enough for anyone, beautiful and uncluttered, no registration, honest data (never invent prices,
+  hours, discounts or reviews), Russian + English.
