@@ -208,6 +208,29 @@ test("Routing asks ORS for segments and parses its real GeoJSON shape", async ()
   }
 });
 
+const exploreCode = compile(
+  await readFile(new URL("../src/lib/explore.server.ts", import.meta.url), "utf8"),
+).replace("./api-guard.server", guard);
+const { normalizePlaces } = await import(uri(exploreCode));
+
+test("Explore keeps open businesses, removes duplicates and ranks by trusted rating", () => {
+  const places = normalizePlaces(
+    [
+      { id: "a", displayName: { text: "Tiny" }, rating: 5, userRatingCount: 3 },
+      { id: "b", displayName: { text: "Loved" }, rating: 4.6, userRatingCount: 900 },
+      { id: "b", displayName: { text: "Loved again" }, rating: 4.6, userRatingCount: 900 },
+      { id: "c", displayName: { text: "Gone" }, rating: 4.9, businessStatus: "CLOSED_PERMANENTLY" },
+      { id: "d", photos: [{ name: "places/x/photos/y" }] },
+    ],
+    "test-key",
+  );
+  assert.deepEqual(
+    places.map((p) => p.name),
+    ["Loved", "Tiny"],
+  );
+  assert.equal(places[0].photo, null);
+});
+
 const araCode = compile(
   await readFile(new URL("../src/lib/ara.server.ts", import.meta.url), "utf8"),
 )
