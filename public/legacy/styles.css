@@ -3967,3 +3967,201 @@ main {
   justify-content: center;
   margin-bottom: 12px;
 }
+
+/* ==========================================================================
+   HAIQ DARK — dark base, wine accent (redesign v2)
+   ========================================================================== */
+:root {
+  --ivory: #0f0d10;
+  --ivory-2: #1c181d;
+  --paper: #18151a;
+  --text: #f4ede4;
+  --muted: rgba(244, 237, 228, 0.6);
+  --line: rgba(255, 255, 255, 0.09);
+  --wine: #a8324c;
+  --wine-deep: #7c2236;
+  --wine-soft: rgba(168, 50, 76, 0.18);
+  --apricot-soft: rgba(227, 154, 91, 0.14);
+  --ok: #5fbf83;
+  --warn: #e3935b;
+  --haiq-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+body {
+  background: var(--ivory);
+  color: var(--text);
+}
+.screen,
+.screen-pad,
+main {
+  background: transparent;
+  color: var(--text);
+}
+.eyebrow {
+  color: var(--apricot);
+}
+.mock-note,
+.prototype-note {
+  color: var(--muted);
+}
+input,
+select,
+textarea {
+  background: var(--paper);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* bottom nav: 4 tabs + Ara in the middle */
+.bottom-nav {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) 84px repeat(2, 1fr);
+  align-items: stretch;
+  overflow: visible;
+  background: color-mix(in srgb, var(--ivory) 88%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid var(--line);
+}
+.bottom-nav .nav-item {
+  height: 100%;
+  margin: 0;
+  padding: 6px 0;
+  color: var(--muted);
+  background: transparent;
+}
+.bottom-nav .nav-item.active {
+  margin: 0;
+  color: var(--text);
+  background: transparent;
+}
+.bottom-nav .nav-item.active svg {
+  stroke: var(--wine);
+  color: var(--wine);
+}
+.nav-ara {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 0 0 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: 600 11px/1 var(--font);
+  cursor: pointer;
+  align-self: start;
+  margin-top: -26px;
+}
+.nav-ara img {
+  width: 62px;
+  height: 62px;
+  padding: 4px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: radial-gradient(circle at 50% 35%, var(--wine) 0%, var(--wine-deep) 70%);
+  box-shadow:
+    0 0 0 4px var(--ivory),
+    0 8px 24px rgba(168, 50, 76, 0.55);
+  transition: transform 0.2s var(--ease);
+}
+.nav-ara:active img {
+  transform: scale(0.94);
+}
+.ara-float {
+  display: none !important;
+}
+
+/* Explore page */
+.explore-head h1 {
+  margin-bottom: 4px;
+}
+.explore-chips {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  margin: 12px -20px 16px;
+  padding: 10px 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: color-mix(in srgb, var(--ivory) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+.explore-chips::-webkit-scrollbar {
+  display: none;
+}
+.explore-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--text);
+  font: 500 14px/1 var(--font);
+  cursor: pointer;
+}
+.explore-chip.active {
+  border-color: var(--wine);
+  background: var(--wine);
+  color: #fff;
+}
+.explore-chip span {
+  font-size: 17px;
+}
+.explore-place {
+  background: var(--paper);
+}
+.money-tip {
+  background: var(--apricot-soft);
+  border: 1px solid rgba(227, 154, 91, 0.25);
+}
+
+/* My Trip: map / edit plan switch */
+.trip-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.trip-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--text);
+  font: 600 14px/1 var(--font);
+  cursor: pointer;
+}
+.trip-switch svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+.seg-chip.active {
+  background: var(--wine);
+  border-color: var(--wine);
+  color: #fff;
+}
+.chat-form input {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--text);
+}
+.chat-form button {
+  background: var(--wine);
+  color: #fff;
+}
+.message.user {
+  background: var(--wine);
+  color: #fff;
+}

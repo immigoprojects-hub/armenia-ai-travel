@@ -30,6 +30,10 @@
       </div>
     </section>
 
+    <section class="screen" id="exploreScreen" data-title="Explore">
+      <div id="exploreRoot" class="screen-pad"></div>
+    </section>
+
     <section class="screen" id="dealsScreen" data-title="Deals">
       <div id="dealsRoot" class="screen-pad"></div>
     </section>
@@ -47,27 +51,23 @@
         <path d="M12 7.5V12l3 2" /></svg
       >Today
     </button>
-    <button class="nav-item" type="button" data-screen="plannerScreen">
+    <button class="nav-item" type="button" data-screen="exploreScreen">
       <svg viewBox="0 0 24 24">
-        <path
-          d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"
-        /></svg
-      >Planner
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="m15.5 8.5-2 5-5 2 2-5 5-2Z" /></svg
+      >Explore
     </button>
-    <button class="nav-item" type="button" data-screen="tripScreen">
-      <svg viewBox="0 0 24 24"><path d="M5 20V5l7 3 7-3v15l-7-3-7 3Z" /></svg>My Trip
-    </button>
-    <button class="nav-item" type="button" data-screen="mapScreen">
-      <svg viewBox="0 0 24 24">
-        <path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 1 1 13 0c0 4.8-6.5 11-6.5 11Z" />
-        <circle cx="12" cy="10" r="2.3" /></svg
-      >Map
+    <button class="nav-ara" type="button" data-open-concierge aria-label="Ask Ara">
+      <img src="__ARA_IMAGE__" alt="" width="1024" height="1024" /><span>Ara</span>
     </button>
     <button class="nav-item" type="button" data-screen="dealsScreen">
       <svg viewBox="0 0 24 24">
         <path d="M4 12V4h8l8 8-8 8-8-8Z" />
         <circle cx="8.5" cy="8.5" r="1.3" /></svg
       >Deals
+    </button>
+    <button class="nav-item" type="button" data-screen="tripScreen">
+      <svg viewBox="0 0 24 24"><path d="M5 20V5l7 3 7-3v15l-7-3-7 3Z" /></svg>My Trip
     </button>
   </nav>
 </div>
