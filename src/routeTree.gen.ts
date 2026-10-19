@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicAraChatRouteImport } from './routes/api/public/ara-chat'
+import { Route as ApiPublicExploreRouteImport } from './routes/api/public/explore'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicPlacesEnrichmentRouteImport } from './routes/api/public/places-enrichment'
 import { Route as ApiPublicRoadRouteRouteImport } from './routes/api/public/road-route'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiPublicAraChatRoute = ApiPublicAraChatRouteImport.update({
   id: '/api/public/ara-chat',
   path: '/api/public/ara-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicExploreRoute = ApiPublicExploreRouteImport.update({
+  id: '/api/public/explore',
+  path: '/api/public/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
@@ -45,6 +51,7 @@ const ApiPublicRoadRouteRoute = ApiPublicRoadRouteRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/public/ara-chat': typeof ApiPublicAraChatRoute
+  '/api/public/explore': typeof ApiPublicExploreRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -52,6 +59,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/public/ara-chat': typeof ApiPublicAraChatRoute
+  '/api/public/explore': typeof ApiPublicExploreRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -60,6 +68,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/public/ara-chat': typeof ApiPublicAraChatRoute
+  '/api/public/explore': typeof ApiPublicExploreRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -69,6 +78,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/api/public/ara-chat'
+    | '/api/public/explore'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -76,6 +86,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/api/public/ara-chat'
+    | '/api/public/explore'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -83,6 +94,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/api/public/ara-chat'
+    | '/api/public/explore'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -91,6 +103,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiPublicAraChatRoute: typeof ApiPublicAraChatRoute
+  ApiPublicExploreRoute: typeof ApiPublicExploreRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicPlacesEnrichmentRoute: typeof ApiPublicPlacesEnrichmentRoute
   ApiPublicRoadRouteRoute: typeof ApiPublicRoadRouteRoute
@@ -110,6 +123,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ara-chat'
       fullPath: '/api/public/ara-chat'
       preLoaderRoute: typeof ApiPublicAraChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/explore': {
+      id: '/api/public/explore'
+      path: '/api/public/explore'
+      fullPath: '/api/public/explore'
+      preLoaderRoute: typeof ApiPublicExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/place-photo': {
@@ -139,6 +159,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiPublicAraChatRoute: ApiPublicAraChatRoute,
+  ApiPublicExploreRoute: ApiPublicExploreRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicPlacesEnrichmentRoute: ApiPublicPlacesEnrichmentRoute,
   ApiPublicRoadRouteRoute: ApiPublicRoadRouteRoute,
