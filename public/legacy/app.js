@@ -3004,7 +3004,7 @@ function renderHaiqToday() {
     next = p.stops[0];
   $("#todayRoot").innerHTML = `
  <section class="ara-welcome"><div class="ara-welcome-copy"><p class="ara-intro">${ht("BAREV! I’M ARA", "БАРЕВ! Я АРА")} <span>✦</span></p><h1>${ht("Your Armenian", "Ваш армянский")}<br><em>${ht("friend, Ara.", "друг Ара.")}</em></h1><div class="ara-speech">${weatherSpeech()}</div><button class="ara-greeting" data-open-concierge>${ht("Let’s explore together", "Давайте исследовать вместе")} ↗</button></div><button class="ara-portrait" data-open-concierge aria-label="Ask Ara"><img src="${araSrc()}" alt="Ara, your Armenian robot guide" width="1024" height="1024"><span class="ara-name">${ht("YOUR LOCAL FRIEND", "ВАШ МЕСТНЫЙ ДРУГ")}</span></button></section>
- <div class="haiq-content">${dealStoriesTemplate()}
+ <div class="haiq-content"><button class="first-day-card" data-first-day><span class="first-day-icon" aria-hidden="true">✈</span><span><small>${ht("JUST LANDED?", "ТОЛЬКО ПРИЛЕТЕЛИ?")}</small><strong>${ht("First day in Armenia", "Первый день в Армении")}</strong><em>${ht("SIM, money, taxi, useful words", "Связь, деньги, такси, полезные слова")}</em></span>${ICON.chevron}</button>${dealStoriesTemplate()}
  <section class="nearby-section"><div class="haiq-section-head"><h2>${ht("Near me now", "Рядом со мной")}</h2><span>${ht("Yerevan · sample distances", "Ереван · пример расстояний")}</span></div><div id="nearbyDeck">${nearbyTemplate()}</div></section>
 <div class="quick-actions"><button data-screen-target="dealsScreen"><span>${ICON.tag}</span>${ht("Deals", "Скидки")}<small>${ht("Little local perks", "Местные бонусы")}</small></button><button data-screen-target="exploreScreen"><span>${ICON.pin}</span>${ht("Explore", "Обзор")}<small>${ht("Food, bars, spa, money", "Еда, бары, спа, деньги")}</small></button><button data-open-concierge><span><img src="${araSrc()}" alt="" width="1024" height="1024"></span>${ht("Ask Ara", "Спросить Ару")}<small>${ht("I know a few things", "Я кое-что знаю")}</small></button></div>
 
@@ -3019,7 +3019,7 @@ function renderHaiqToday() {
      "",
    )}</ol><button class="text-link" data-screen-target="mapScreen">${ht("See today’s route", "Маршрут на сегодня")} ↗</button></article></section></div>
 
- <button class="first-day-banner" data-first-day><span class="first-day-symbol">✈</span><span><small>${ht("JUST LANDED?", "ТОЛЬКО ПРИЛЕТЕЛИ?")}</small><strong>${ht("First day in Armenia", "Первый день в Армении")}</strong><p>${ht("Get connected. Get around. Feel at home.", "Связь. Транспорт. Чувствуйте себя дома.")}</p></span>${ICON.chevron}</button><p class="prototype-note">${ht("A little preview of Armenia · offers & live info are illustrative", "Небольшой пример Армении · скидки и текущие данные иллюстративны")}</p></div>`;
+<p class="prototype-note">${ht("A little preview of Armenia · offers & live info are illustrative", "Небольшой пример Армении · скидки и текущие данные иллюстративны")}</p></div>`;
 }
 /* ---------- Explore: live places by category (Google Places) ---------- */
 const EXPLORE = [
@@ -3609,7 +3609,12 @@ document.addEventListener("click", (e) => {
   if (b.hasAttribute("data-first-day")) return showFirstDay();
   if (b.dataset.exploreTab) {
     haiq.explore = b.dataset.exploreTab;
+    const y = window.scrollY;
     renderExploreScreen();
+    const body = $(".explore-body");
+    const chipsH = $(".explore-chips")?.offsetHeight || 0;
+    const listTop = body ? body.getBoundingClientRect().top + window.scrollY - chipsH - 8 : 0;
+    window.scrollTo({ top: Math.min(y, Math.max(0, listTop)) });
     $(".explore-chip.active")?.scrollIntoView({
       inline: "center",
       block: "nearest",
@@ -3636,7 +3641,7 @@ document
   .querySelector(".app-shell")
   .insertAdjacentHTML(
     "afterbegin",
-    `<header class="haiq-header"><a class="haiq-logo" href="/" aria-label="HAIQ home"><span class="haiq-logo-mark">հ</span><span><strong>HAIQ<span class="logo-dot">.</span></strong><small>ARMENIA TRAVEL GUIDE</small></span></a><div class="haiq-header-right"><span class="location-label">${ICON.pin} Yerevan, Armenia</span><div class="lang-switch" aria-label="Language"><button data-lang="en" class="active" aria-pressed="true">EN</button><button data-lang="ru" aria-pressed="false">RU</button></div></div></header>`,
+    `<header class="haiq-header"><a class="haiq-logo" href="/" aria-label="HAIQ home"><span class="haiq-logo-mark">հ</span><span><strong>HAIQ<span class="logo-dot">.</span></strong><small>ARMENIA TRAVEL GUIDE</small></span></a><div class="haiq-header-right"><span class="location-label">${ICON.pin} Yerevan, Armenia</span><button class="header-ara" data-open-concierge aria-label="Ask Ara"><img src="${araSrc()}" alt="" width="60" height="60">Ara</button><div class="lang-switch" aria-label="Language"><button data-lang="en" class="active" aria-pressed="true">EN</button><button data-lang="ru" aria-pressed="false">RU</button></div></div></header>`,
   );
 if (!state.plan.length) buildPlan(false);
 persistTrip();
