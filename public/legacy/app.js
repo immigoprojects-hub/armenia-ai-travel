@@ -3023,14 +3023,31 @@ function renderHaiqToday() {
 }
 /* ---------- Explore: live places by category (Google Places) ---------- */
 const EXPLORE = [
-  ["food", "🍽", "Food", "Еда"],
-  ["coffee", "☕", "Coffee", "Кофе"],
-  ["wine", "🍷", "Wine", "Вино"],
-  ["bars", "🍸", "Bars", "Бары"],
-  ["clubs", "🪩", "Clubs", "Клубы"],
-  ["quests", "🗝", "Quests", "Квесты"],
-  ["spa", "💆", "Spa & massage", "Спа и массаж"],
-  ["money", "💱", "Money", "Деньги"],
+  ["food", "🍽", "Food", "Еда", "eat"],
+  ["coffee", "☕", "Coffee", "Кофе", "eat"],
+  ["wine", "🍷", "Wine bars", "Винные бары", "eat"],
+  ["bars", "🍸", "Bars", "Бары", "eat"],
+  ["clubs", "🪩", "Clubs", "Клубы", "eat"],
+  ["hookah", "💨", "Hookah", "Кальян", "eat"],
+  ["karaoke", "🎤", "Karaoke", "Караоке", "eat"],
+  ["free", "🆓", "Free to visit", "Бесплатно", "do"],
+  ["museums", "🏛", "Museums", "Музеи", "do"],
+  ["daytrips", "🚐", "Day trips", "Поездки на день", "do"],
+  ["winetours", "🍇", "Wineries", "Винодельни", "do"],
+  ["sky", "🚁", "Helicopter & paragliding", "Вертолёт и параплан", "do"],
+  ["hiking", "🥾", "Hiking", "Походы", "do"],
+  ["quests", "🗝", "Quests", "Квесты", "do"],
+  ["spa", "💆", "Spa & massage", "Спа и массаж", "do"],
+  ["money", "💱", "Money & ATMs", "Деньги и банкоматы", "help"],
+  ["sim", "📶", "SIM cards", "SIM-карты", "help"],
+  ["pharmacy", "💊", "Pharmacy 24/7", "Аптеки 24/7", "help"],
+  ["carrental", "🚗", "Car rental", "Аренда авто", "help"],
+  ["souvenirs", "🛍", "Souvenirs & markets", "Сувениры и рынки", "help"],
+];
+const EXPLORE_GROUPS = [
+  ["eat", "Eat & night", "Еда и ночь"],
+  ["do", "Things to do", "Чем заняться"],
+  ["help", "Useful", "Полезное"],
 ];
 const exploreCache = {};
 function moneyTipTemplate() {
@@ -3063,7 +3080,19 @@ function renderExploreScreen() {
   const id = haiq.explore || "food";
   const meta = EXPLORE.find((c) => c[0] === id);
   const key = `${id}:${haiq.lang}`;
-  root.innerHTML = `<header class="screen-head explore-head"><p class="eyebrow">HAIQ · ${ht("EXPLORE", "ОБЗОР")}</p><h1 class="display-sm">${ht("What’s good in Yerevan", "Что интересного в Ереване")}</h1></header><div class="explore-chips" role="tablist">${EXPLORE.map(([cid, icon, en, ru]) => `<button class="explore-chip ${cid === id ? "active" : ""}" role="tab" aria-selected="${cid === id}" data-explore-tab="${cid}"><span aria-hidden="true">${icon}</span>${ht(en, ru)}</button>`).join("")}</div><div class="explore-body">${id === "money" ? moneyTipTemplate() : ""}${exploreCache[key] || `<p class="explore-loading">${ht("Ara is looking around…", "Ара осматривается…")}</p>`}</div><p class="mock-note">${ht("Places, ratings and hours from Google. Not paid placements.", "Места, рейтинги и часы — из Google. Не реклама.")}</p>`;
+  root.innerHTML = `<header class="screen-head explore-head"><p class="eyebrow">HAIQ · ${ht("EXPLORE", "ОБЗОР")}</p><h1 class="display-sm">${ht("What’s good in Yerevan", "Что интересного в Ереване")}</h1></header><div class="explore-groups">${EXPLORE_GROUPS.map(([g, en, ru]) => `<button class="explore-group ${g === meta[4] ? "active" : ""}" data-explore-group="${g}">${ht(en, ru)}</button>`).join("")}</div><div class="explore-chips" role="tablist">${EXPLORE.filter(
+    (c) => c[4] === meta[4],
+  )
+    .map(
+      ([cid, icon, en, ru]) =>
+        `<button class="explore-chip ${cid === id ? "active" : ""}" role="tab" aria-selected="${cid === id}" data-explore-tab="${cid}"><span aria-hidden="true">${icon}</span>${ht(en, ru)}</button>`,
+    )
+    .join(
+      "",
+    )}</div><div class="explore-body">${id === "money" ? moneyTipTemplate() : ""}${exploreCache[key] || `<p class="explore-loading">${ht("Ara is looking around…", "Ара осматривается…")}</p>`}</div><p class="mock-note">${ht("Places, ratings and hours from Google. Not paid placements.", "Места, рейтинги и часы — из Google. Не реклама.")}</p>`;
+  const chips = root.querySelector(".explore-chips");
+  const activeChip = chips?.querySelector(".explore-chip.active");
+  if (chips && activeChip) chips.scrollLeft = Math.max(0, activeChip.offsetLeft - 24);
   if (!exploreCache[key])
     loadExplore(id).then(() => (haiq.explore || "food") === id && renderExploreScreen());
   return meta;
@@ -3607,6 +3636,11 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (b.hasAttribute("data-first-day")) return showFirstDay();
+  if (b.dataset.exploreGroup) {
+    haiq.explore = EXPLORE.find((c) => c[4] === b.dataset.exploreGroup)[0];
+    renderExploreScreen();
+    return;
+  }
   if (b.dataset.exploreTab) {
     haiq.explore = b.dataset.exploreTab;
     const y = window.scrollY;
@@ -3615,11 +3649,6 @@ document.addEventListener("click", (e) => {
     const chipsH = $(".explore-chips")?.offsetHeight || 0;
     const listTop = body ? body.getBoundingClientRect().top + window.scrollY - chipsH - 8 : 0;
     window.scrollTo({ top: Math.min(y, Math.max(0, listTop)) });
-    $(".explore-chip.active")?.scrollIntoView({
-      inline: "center",
-      block: "nearest",
-      behavior: "smooth",
-    });
     return;
   }
   if (b.hasAttribute("data-nearby-open")) {

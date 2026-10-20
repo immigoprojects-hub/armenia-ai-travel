@@ -4200,3 +4200,26 @@ main {
 .explore-body {
   min-height: 70vh;
 }
+.explore-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: 14px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--ivory-2);
+}
+.explore-group {
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 14px/1.2 var(--font);
+  cursor: pointer;
+}
+.explore-group.active {
+  background: var(--paper);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
