@@ -3968,54 +3968,10 @@ main {
   margin-bottom: 12px;
 }
 
-/* ==========================================================================
-   HAIQ DARK — dark base, wine accent (redesign v2)
-   ========================================================================== */
-:root {
-  --ivory: #0f0d10;
-  --ivory-2: #1c181d;
-  --paper: #18151a;
-  --text: #f4ede4;
-  --muted: rgba(244, 237, 228, 0.6);
-  --line: rgba(255, 255, 255, 0.09);
-  --wine: #a8324c;
-  --wine-deep: #7c2236;
-  --wine-soft: rgba(168, 50, 76, 0.18);
-  --apricot-soft: rgba(227, 154, 91, 0.14);
-  --ok: #5fbf83;
-  --warn: #e3935b;
-  --haiq-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-  color-scheme: dark;
-}
-body {
-  background: var(--ivory);
-  color: var(--text);
-}
-.screen,
-.screen-pad,
-main {
-  background: transparent;
-  color: var(--text);
-}
-.eyebrow {
-  color: var(--apricot);
-}
-.mock-note,
-.prototype-note {
-  color: var(--muted);
-}
-input,
-select,
-textarea {
-  background: var(--paper);
-  color: var(--text);
-  border-color: var(--line);
-}
-
-/* bottom nav: 4 tabs + Ara in the middle */
+/* bottom nav: 4 tabs */
 .bottom-nav {
   display: grid;
-  grid-template-columns: repeat(2, 1fr) 84px repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
   overflow: visible;
   background: color-mix(in srgb, var(--ivory) 88%, transparent);
@@ -4164,4 +4120,83 @@ textarea {
 .message.user {
   background: var(--wine);
   color: #fff;
+}
+
+/* Ara button in the header */
+.header-ara {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--text);
+  font: 600 13px/1 var(--font);
+  cursor: pointer;
+}
+.header-ara img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: var(--wine-soft);
+}
+@media (max-width: 520px) {
+  .haiq-header .location-label {
+    display: none;
+  }
+}
+/* Just landed: prominent card at the top of Today */
+.first-day-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--wine) 0%, var(--wine-deep) 100%);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(110, 27, 45, 0.25);
+}
+.first-day-card .first-day-icon {
+  display: grid;
+  flex: 0 0 48px;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 24px;
+}
+.first-day-card span {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+.first-day-card small {
+  font: 600 11px/1.2 var(--font);
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+.first-day-card strong {
+  font: 600 18px/1.2 var(--font);
+}
+.first-day-card em {
+  font-style: normal;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.first-day-card svg {
+  width: 20px;
+  height: 20px;
+  stroke: #fff;
+  fill: none;
+}
+.explore-body {
+  min-height: 70vh;
 }
