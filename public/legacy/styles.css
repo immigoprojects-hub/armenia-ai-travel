@@ -3856,3 +3856,312 @@ main {
 .money-tip ul {
   list-style: disc;
 }
+
+/* ---------- Coupon merchandising (savings in dram, terms, counts) ---------- */
+.savings-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--charcoal);
+  color: var(--on-dark);
+}
+.savings-bar img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.savings-bar span {
+  display: grid;
+  flex: 1;
+}
+.savings-bar small {
+  color: var(--on-dark-muted);
+  font-size: 12px;
+}
+.savings-bar strong {
+  font: 600 22px/1.2 var(--font);
+  color: var(--apricot);
+}
+.savings-bar .text-link {
+  color: var(--on-dark);
+}
+.chip-count {
+  margin-left: 4px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 12px;
+}
+.coupon-media {
+  position: relative;
+}
+.coupon-ends {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 70%, transparent);
+  color: #fff;
+  font: 600 12px/1.2 var(--font);
+}
+.coupon-ends.soon {
+  background: #b3261e;
+}
+.coupon-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+}
+.coupon-price s {
+  color: var(--muted);
+  font-size: 14px;
+}
+.coupon-price b {
+  font: 600 20px/1.2 var(--font);
+  color: var(--text);
+}
+.coupon-save {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: var(--ok);
+  font: 600 13px/1.3 var(--font);
+}
+.coupon-price-note {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.coupon-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.coupon-terms li {
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 12px;
+}
+.coupon-trust {
+  margin: 10px 0 0;
+  color: var(--ok);
+  font-size: 13px;
+}
+.coupon-modal-save {
+  margin: 4px 0 0;
+  color: var(--ok);
+  font-weight: 600;
+}
+.coupon-modal .coupon-terms {
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* ==========================================================================
+   HAIQ DARK — dark base, wine accent (redesign v2)
+   ========================================================================== */
+:root {
+  --ivory: #0f0d10;
+  --ivory-2: #1c181d;
+  --paper: #18151a;
+  --text: #f4ede4;
+  --muted: rgba(244, 237, 228, 0.6);
+  --line: rgba(255, 255, 255, 0.09);
+  --wine: #a8324c;
+  --wine-deep: #7c2236;
+  --wine-soft: rgba(168, 50, 76, 0.18);
+  --apricot-soft: rgba(227, 154, 91, 0.14);
+  --ok: #5fbf83;
+  --warn: #e3935b;
+  --haiq-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+body {
+  background: var(--ivory);
+  color: var(--text);
+}
+.screen,
+.screen-pad,
+main {
+  background: transparent;
+  color: var(--text);
+}
+.eyebrow {
+  color: var(--apricot);
+}
+.mock-note,
+.prototype-note {
+  color: var(--muted);
+}
+input,
+select,
+textarea {
+  background: var(--paper);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* bottom nav: 4 tabs + Ara in the middle */
+.bottom-nav {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) 84px repeat(2, 1fr);
+  align-items: stretch;
+  overflow: visible;
+  background: color-mix(in srgb, var(--ivory) 88%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid var(--line);
+}
+.bottom-nav .nav-item {
+  height: 100%;
+  margin: 0;
+  padding: 6px 0;
+  color: var(--muted);
+  background: transparent;
+}
+.bottom-nav .nav-item.active {
+  margin: 0;
+  color: var(--text);
+  background: transparent;
+}
+.bottom-nav .nav-item.active svg {
+  stroke: var(--wine);
+  color: var(--wine);
+}
+.nav-ara {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 0 0 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: 600 11px/1 var(--font);
+  cursor: pointer;
+  align-self: start;
+  margin-top: -26px;
+}
+.nav-ara img {
+  width: 62px;
+  height: 62px;
+  padding: 4px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: radial-gradient(circle at 50% 35%, var(--wine) 0%, var(--wine-deep) 70%);
+  box-shadow:
+    0 0 0 4px var(--ivory),
+    0 8px 24px rgba(168, 50, 76, 0.55);
+  transition: transform 0.2s var(--ease);
+}
+.nav-ara:active img {
+  transform: scale(0.94);
+}
+.ara-float {
+  display: none !important;
+}
+
+/* Explore page */
+.explore-head h1 {
+  margin-bottom: 4px;
+}
+.explore-chips {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  margin: 12px -20px 16px;
+  padding: 10px 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: color-mix(in srgb, var(--ivory) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+.explore-chips::-webkit-scrollbar {
+  display: none;
+}
+.explore-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--text);
+  font: 500 14px/1 var(--font);
+  cursor: pointer;
+}
+.explore-chip.active {
+  border-color: var(--wine);
+  background: var(--wine);
+  color: #fff;
+}
+.explore-chip span {
+  font-size: 17px;
+}
+.explore-place {
+  background: var(--paper);
+}
+.money-tip {
+  background: var(--apricot-soft);
+  border: 1px solid rgba(227, 154, 91, 0.25);
+}
+
+/* My Trip: map / edit plan switch */
+.trip-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.trip-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--text);
+  font: 600 14px/1 var(--font);
+  cursor: pointer;
+}
+.trip-switch svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+.seg-chip.active {
+  background: var(--wine);
+  border-color: var(--wine);
+  color: #fff;
+}
+.chat-form input {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--text);
+}
+.chat-form button {
+  background: var(--wine);
+  color: #fff;
+}
+.message.user {
+  background: var(--wine);
+  color: #fff;
+}

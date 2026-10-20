@@ -48,6 +48,10 @@ test("coupon issuance saves one QR per coupon in the wallet", () => {
     coupons: [{ id: "lavash", partner: "Lavash", off: 20, until: "2026-12-31", distance: "350 m" }],
     haiq: { wallet: [] },
     renderMyTrip() {},
+    renderDeals() {},
+    fmtAmd: (n) => `${n} AMD`,
+    couponSave: () => 1600,
+    couponTermsTemplate: () => "",
     $: () => dialog,
     ht: (x) => x,
   };
@@ -130,4 +134,17 @@ test("Ara actions only run for known places and coupons", () => {
     "coupon:lavash",
   ]);
   assert.deepEqual([...ctx.done], ["add", "add", "map", "coupon"]);
+});
+
+test("coupon savings round to 100 dram and ending soon shows in red", () => {
+  const save = source.match(/const couponSave = .*;/)?.[0];
+  const days = pick("daysLeft");
+  const ctx = {};
+  vm.runInNewContext(
+    `${save}; ${days}; a = couponSave({ bill: 8000, off: 20 }); b = couponSave({ bill: 2500, off: 15 }); c = daysLeft(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));`,
+    ctx,
+  );
+  assert.equal(ctx.a, 1600);
+  assert.equal(ctx.b, 400);
+  assert.ok(ctx.c >= 3 && ctx.c <= 4);
 });
