@@ -3971,45 +3971,48 @@ main {
 /* ==========================================================================
    HAIQ DARK — dark base, wine accent (redesign v2)
    ========================================================================== */
-:root {
-  --ivory: #0f0d10;
-  --ivory-2: #1c181d;
-  --paper: #18151a;
-  --text: #f4ede4;
-  --muted: rgba(244, 237, 228, 0.6);
-  --line: rgba(255, 255, 255, 0.09);
-  --wine: #a8324c;
-  --wine-deep: #7c2236;
-  --wine-soft: rgba(168, 50, 76, 0.18);
-  --apricot-soft: rgba(227, 154, 91, 0.14);
-  --ok: #5fbf83;
-  --warn: #e3935b;
-  --haiq-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-  color-scheme: dark;
-}
-body {
-  background: var(--ivory);
-  color: var(--text);
-}
-.screen,
-.screen-pad,
-main {
-  background: transparent;
-  color: var(--text);
-}
-.eyebrow {
-  color: var(--apricot);
-}
-.mock-note,
-.prototype-note {
-  color: var(--muted);
-}
-input,
-select,
-textarea {
-  background: var(--paper);
-  color: var(--text);
-  border-color: var(--line);
+/* Dark tokens follow the phone setting (light stays the original HAIQ palette). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ivory: #0f0d10;
+    --ivory-2: #1c181d;
+    --paper: #18151a;
+    --text: #f4ede4;
+    --muted: rgba(244, 237, 228, 0.6);
+    --line: rgba(255, 255, 255, 0.09);
+    --wine: #a8324c;
+    --wine-deep: #7c2236;
+    --wine-soft: rgba(168, 50, 76, 0.18);
+    --apricot-soft: rgba(227, 154, 91, 0.14);
+    --ok: #5fbf83;
+    --warn: #e3935b;
+    --haiq-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+  body {
+    background: var(--ivory);
+    color: var(--text);
+  }
+  .screen,
+  .screen-pad,
+  main {
+    background: transparent;
+    color: var(--text);
+  }
+  .eyebrow {
+    color: var(--apricot);
+  }
+  .mock-note,
+  .prototype-note {
+    color: var(--muted);
+  }
+  input,
+  select,
+  textarea {
+    background: var(--paper);
+    color: var(--text);
+    border-color: var(--line);
+  }
 }
 
 /* bottom nav: 4 tabs + Ara in the middle */
