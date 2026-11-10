@@ -75,4 +75,4 @@ The Xcode project is `ios/App` (Swift Package Manager, no CocoaPods).
 - Map "Show my location" (both web and app) asks for location only when tapped.
 - `.github/workflows/ios.yml` builds an unsigned simulator app on macOS, launches it,
   and uploads a screenshot. Signing and TestFlight need an Apple Developer account.
-- Bundle id `com.armeniaai.travel` is a placeholder until the App Store record exists.
+- Bundle id `com.haiq.travel` (registered in the Apple Developer account; App Store Connect app "HAIQ: Armenia Travel & Deals", SKU haiq-001).

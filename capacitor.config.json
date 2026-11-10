@@ -1,6 +1,6 @@
 {
-  "appId": "com.armeniaai.travel",
-  "appName": "Armenia AI",
+  "appId": "com.haiq.travel",
+  "appName": "HAIQ",
   "webDir": "native/www",
   "backgroundColor": "#211d22",
   "ios": {

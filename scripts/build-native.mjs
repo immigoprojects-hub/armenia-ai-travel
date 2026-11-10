@@ -29,7 +29,9 @@ for (const dir of ["legacy", "vendor"]) {
 const assets = await readdir(path.join(staticDir, "assets"));
 await mkdir(path.join(outDir, "assets"));
 for (const file of assets.filter((f) => !f.endsWith(".js"))) {
-  await cp(path.join(staticDir, "assets", file), path.join(outDir, "assets", file));
+  await cp(path.join(staticDir, "assets", file), path.join(outDir, "assets", file), {
+    recursive: true,
+  });
 }
 const baseCss = assets.filter((f) => /^styles-.*\.css$/.test(f));
 if (baseCss.length !== 1) throw new Error(`Expected one base stylesheet, found ${baseCss}`);
