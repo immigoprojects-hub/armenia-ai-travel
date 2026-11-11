@@ -2958,29 +2958,6 @@ const WEATHER_CODES = [
   [[71, 73, 75, 77, 85, 86], "❄", "Snow", "Снег"],
   [[95, 96, 99], "⛈", "Thunderstorm", "Гроза"],
 ];
-function weatherSpeech() {
-  const w = haiq.weather;
-  if (!w)
-    return `<strong>${ht("Barev! Ready to explore?", "Барев! Готовы исследовать?")}</strong><p>${ht("Your day in Yerevan is planned below. Tap me if you want ideas, food tips or a quick route.", "Ваш день в Ереване — ниже. Нажмите на меня, если нужны идеи, еда или быстрый маршрут.")}</p>`;
-  const [, icon, en, ru] = WEATHER_CODES.find(([codes]) => codes.includes(w.code)) || [
-    [],
-    "🌡",
-    "Weather",
-    "Погода",
-  ];
-  const wet = icon === "🌧" || icon === "⛈" || icon === "❄";
-  const t = Math.round(w.temp);
-  const tip = wet
-    ? ht(
-        `It’s ${t}° and ${en.toLowerCase()} in Yerevan — a good day for Matenadaran, a cosy café and Armenian comfort food.`,
-        `В Ереване ${t}° и ${ru.toLowerCase()} — хороший день для Матенадарана, уютного кафе и армянской кухни.`,
-      )
-    : ht(
-        `It’s ${t}° in Yerevan. Perfect for a stroll, a fresh lavash and a little adventure. Shall we?`,
-        `В Ереване ${t}°. Отлично для прогулки, свежего лаваша и маленького приключения. Пойдём?`,
-      );
-  return `<strong>${wet ? ht("Cosy day ahead.", "Уютный день впереди.") : ht("A good day to explore.", "Хороший день для прогулок.")}</strong><p>${tip}</p><span class="weather-line">${icon} ${ht("Yerevan", "Ереван")} · ${ht(en, ru)} · ${t}°</span>`;
-}
 async function loadWeather() {
   try {
     const res = await fetch(
@@ -2992,34 +2969,74 @@ async function loadWeather() {
     const c = data && data.current;
     if (!c || typeof c.temperature_2m !== "number") return;
     haiq.weather = { temp: c.temperature_2m, code: c.weather_code };
-    if ($("#todayRoot .ara-speech")) $("#todayRoot .ara-speech").innerHTML = weatherSpeech();
+    if ($("#t2Weather")) $("#t2Weather").textContent = weatherShort();
   } catch {
     /* keep the neutral greeting */
   }
 }
+function weatherShort() {
+  const w = haiq.weather;
+  if (!w) return "";
+  const [, icon, en, ru] = WEATHER_CODES.find(([codes]) => codes.includes(w.code)) || [
+    [],
+    "🌡",
+    "Weather",
+    "Погода",
+  ];
+  return ` · ${icon} ${Math.round(w.temp)}° ${ht(en, ru).toLowerCase()}`;
+}
+function greetingText() {
+  const h = Number(
+    new Intl.DateTimeFormat("en-GB", { hour: "numeric", timeZone: "Asia/Yerevan" }).format(
+      new Date(),
+    ),
+  );
+  if (h < 5 || h >= 22) return ht("Good night", "Доброй ночи");
+  if (h < 12) return ht("Good morning", "Доброе утро");
+  if (h < 18) return ht("Good afternoon", "Добрый день");
+  return ht("Good evening", "Добрый вечер");
+}
+// One sample partner offer per day, rotating, so Today always shows a single clear deal.
+function dealOfDay() {
+  const day = Math.floor(Date.now() / 86400000);
+  return coupons[day % coupons.length];
+}
+const TOOL_ICONS = {
+  money: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  sim: '<path d="M7 3h7l4 4v14H7V3Z"/><path d="M10 13h5v4h-5z"/>',
+  taxi: '<path d="M5 16h14M6 16l1.5-6h9L18 16M7 16v3M17 16v3"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/>',
+};
+const toolIcon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${TOOL_ICONS[k]}</svg>`;
 function renderHaiqToday() {
   const d = currentDayIndex(),
     day = state.plan[d],
-    p = dayPlan(day),
-    next = p.stops[0];
-  $("#todayRoot").innerHTML = `
- <section class="ara-welcome"><div class="ara-welcome-copy"><p class="ara-intro">${ht("BAREV! I’M ARA", "БАРЕВ! Я АРА")} <span>✦</span></p><h1>${ht("Your Armenian", "Ваш армянский")}<br><em>${ht("friend, Ara.", "друг Ара.")}</em></h1><div class="ara-speech">${weatherSpeech()}</div><button class="ara-greeting" data-open-concierge>${ht("Let’s explore together", "Давайте исследовать вместе")} ↗</button></div><button class="ara-portrait" data-open-concierge aria-label="Ask Ara"><img src="${araSrc()}" alt="Ara, your Armenian robot guide" width="1024" height="1024"><span class="ara-name">${ht("YOUR LOCAL FRIEND", "ВАШ МЕСТНЫЙ ДРУГ")}</span></button></section>
- <div class="haiq-content"><button class="first-day-card" data-first-day><span class="first-day-icon" aria-hidden="true">✈</span><span><small>${ht("JUST LANDED?", "ТОЛЬКО ПРИЛЕТЕЛИ?")}</small><strong>${ht("First day in Armenia", "Первый день в Армении")}</strong><em>${ht("SIM, money, taxi, useful words", "Связь, деньги, такси, полезные слова")}</em></span>${ICON.chevron}</button>${dealStoriesTemplate()}
- <section class="nearby-section"><div class="haiq-section-head"><h2>${ht("Near me now", "Рядом со мной")}</h2><span>${ht("Yerevan · sample distances", "Ереван · пример расстояний")}</span></div><div id="nearbyDeck">${nearbyTemplate()}</div></section>
-<div class="quick-actions"><button data-screen-target="dealsScreen"><span>${ICON.tag}</span>${ht("Deals", "Скидки")}<small>${ht("Little local perks", "Местные бонусы")}</small></button><button data-screen-target="exploreScreen"><span>${ICON.pin}</span>${ht("Explore", "Обзор")}<small>${ht("Food, bars, spa, money", "Еда, бары, спа, деньги")}</small></button><button data-open-concierge><span><img src="${araSrc()}" alt="" width="1024" height="1024"></span>${ht("Ask Ara", "Спросить Ару")}<small>${ht("I know a few things", "Я кое-что знаю")}</small></button></div>
-
- <div class="today-grid">
- <section class="today-route"><div class="haiq-section-head"><h2>${ht("Your day, at a glance", "Ваш день вкратце")}</h2><span>${ht("Day", "День")} ${d + 1}/${state.plan.length}</span></div><article class="daily-card"><p class="eyebrow">${ht("NEXT UP", "СЛЕДУЮЩАЯ ОСТАНОВКА")} · ${next ? fmtTime(next.arrive) : "09:00"}</p><h3>${next ? escapeHtml(next.entity.name) : "Yerevan"}</h3><p>${ht("A little history. A fresh perspective.", "Немного истории. Свежий взгляд.")}</p><ol>${p.stops
-   .slice(0, 3)
-   .map(
-     (s, i) =>
-       `<li><span>${i + 1}</span><button class="detail-button" data-id="${s.entity.id}"><strong>${escapeHtml(shortName(s.entity))}</strong><small>${fmtTime(s.arrive)} · ${fmtDur(s.duration)}</small></button></li>`,
-   )
-   .join(
-     "",
-   )}</ol><button class="text-link" data-screen-target="mapScreen">${ht("See today’s route", "Маршрут на сегодня")} ↗</button></article></section></div>
-
-<p class="prototype-note">${ht("A little preview of Armenia · offers & live info are illustrative", "Небольшой пример Армении · скидки и текущие данные иллюстративны")}</p></div>`;
+    p = day ? dayPlan(day) : { stops: [] },
+    c = dealOfDay(),
+    L = haiq.lang === "ru" ? 1 : 0;
+  const tools = `<div class="t2-tools">
+<button data-explore-go="money"><span>${toolIcon("money")}</span>${ht("Exchange", "Обмен")}<small>${ht("ATMs", "Банкоматы")}</small></button>
+<button data-explore-go="sim"><span>${toolIcon("sim")}</span>SIM<small>${ht("Internet", "Интернет")}</small></button>
+<a href="https://go.yandex/" target="_blank" rel="noreferrer"><span>${toolIcon("taxi")}</span>${ht("Taxi", "Такси")}<small>Yandex Go</small></a>
+<button data-first-day><span>${toolIcon("help")}</span>${ht("Help", "Помощь")}<small>${ht("First day", "Первый день")}</small></button></div>`;
+  const deal = c
+    ? `<section class="t2-section"><div class="t2-head"><div><p class="t2-kicker">${ht("DEAL OF THE DAY", "СКИДКА ДНЯ")}</p><h2>${ht("A new one every day", "Каждый день новая")}</h2></div><button class="text-link" data-screen-target="dealsScreen">${ht("All", "Все")}</button></div><button class="t2-deal" data-coupon="${c.id}"><span class="t2-deal-top"><span><strong>${escapeHtml(c.partner)}</strong><small>${escapeHtml(ht(c.distance, c.distance.replace("km", "км").replace("m", "м")))} · ${escapeHtml(c.title[L])}</small></span><b>−${c.off}%</b></span><img src="${dealPhoto(c)}" alt="" width="1200" height="800" loading="lazy"><span class="t2-deal-note">${ht("Sample partner offer · not redeemable yet", "Пример предложения партнёра · пока не действует")}</span></button></section>`
+    : "";
+  const stops = p.stops.slice(0, 4);
+  const plan = stops.length
+    ? `<section class="t2-section"><div class="t2-head t2-pad"><div><p class="t2-kicker">${ht("ARA’S PLAN FOR TODAY", "ПЛАН АРЫ НА СЕГОДНЯ")}</p><h2>${ht("Your day", "Ваш день")}</h2></div><button class="text-link" data-screen-target="mapScreen">${ht("Map", "Карта")}</button></div><div class="t2-cards">${stops
+        .map(
+          (s) =>
+            `<button class="t2-card detail-button" data-id="${s.entity.id}"><img src="${entityImage(s.entity)}" ${imageFallbackAttr(s.entity)} alt="" loading="lazy" width="400" height="300"><span class="t2-card-shade"></span><span class="t2-card-copy"><small>${fmtTime(s.arrive)}</small><strong>${escapeHtml(shortName(s.entity))}</strong></span></button>`,
+        )
+        .join("")}</div></section>`
+    : "";
+  $("#todayRoot").innerHTML = `<div class="t2">
+<header class="t2-top"><p class="t2-loc">${ICON.pin} ${ht("Yerevan", "Ереван")}<span id="t2Weather">${weatherShort()}</span></p><h1>${greetingText()}</h1></header>
+${tools}${deal}${plan}
+<p class="prototype-note">${ht("Partner offers are examples until partners join · places & hours from Google", "Предложения — примеры, пока партнёры не подключены · места и часы из Google")}</p>
+<button class="t2-ask" data-open-concierge><img src="${araSrc()}" alt="" width="64" height="64"><span>${ht("Ask Ara…", "Спросить Ару…")}</span><i aria-hidden="true">↑</i></button>
+</div>`;
 }
 /* ---------- Explore: live places by category (Google Places) ---------- */
 const EXPLORE = [
@@ -3334,6 +3351,7 @@ const ruWords = {
   Today: "Сегодня",
   Planner: "Планировщик",
   "My Trip": "Моя поездка",
+  "My plan": "Мой план",
   Map: "Карта",
   Deals: "Скидки",
   Explore: "Обзор",
@@ -3636,6 +3654,12 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (b.hasAttribute("data-first-day")) return showFirstDay();
+  if (b.dataset.exploreGo) {
+    haiq.explore = b.dataset.exploreGo;
+    openScreen("exploreScreen");
+    window.scrollTo({ top: 0 });
+    return;
+  }
   if (b.dataset.exploreGroup) {
     haiq.explore = EXPLORE.find((c) => c[4] === b.dataset.exploreGroup)[0];
     renderExploreScreen();
@@ -3659,8 +3683,6 @@ document.addEventListener("click", (e) => {
   if (b.hasAttribute("data-nearby-add")) return animateNearby(1);
   if (b.hasAttribute("data-nearby-skip")) return animateNearby(-1);
   if (b.hasAttribute("data-open-concierge")) {
-    document.querySelector(".ara-float").classList.add("waving");
-    setTimeout(() => document.querySelector(".ara-float").classList.remove("waving"), 900);
     setTimeout(() => $("#chatInput").focus(), 50);
   }
 });
