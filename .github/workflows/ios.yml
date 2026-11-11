@@ -64,7 +64,7 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
           xcrun simctl install "$udid" build/Build/Products/Debug-iphonesimulator/App.app
-          xcrun simctl launch "$udid" com.armeniaai.travel
+          xcrun simctl launch "$udid" com.haiq.travel
           sleep 20
           mkdir -p screenshots
           xcrun simctl io "$udid" screenshot screenshots/launch.png
