@@ -18,6 +18,22 @@ export const EXPLORE_CATEGORIES: Record<string, string[]> = {
   quests: ["escape room quest Yerevan"],
   spa: ["spa massage Yerevan"],
   money: ["VTB Bank Armenia ATM Yerevan", "currency exchange Yerevan"],
+  hookah: ["hookah lounge Yerevan"],
+  karaoke: ["karaoke bar Yerevan"],
+  museums: ["museum Yerevan"],
+  free: [
+    "Tsitsernakaberd Armenian Genocide Memorial",
+    "Armenian Apostolic church Yerevan",
+    "park Yerevan",
+  ],
+  daytrips: ["day tour from Yerevan travel agency"],
+  winetours: ["winery wine tasting Areni Armenia", "winery tour Armenia"],
+  sky: ["helicopter tour Armenia", "paragliding Armenia"],
+  hiking: ["hiking club tours Armenia"],
+  souvenirs: ["Vernissage market Yerevan", "souvenir shop Yerevan"],
+  sim: ["Viva Armenia store Yerevan", "Team Telecom Armenia store Yerevan", "Ucom store Yerevan"],
+  pharmacy: ["24 hour pharmacy Yerevan"],
+  carrental: ["car rental Yerevan"],
 };
 
 const FIELD_MASK = [

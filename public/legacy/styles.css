@@ -4200,3 +4200,263 @@ main {
 .explore-body {
   min-height: 70vh;
 }
+.explore-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: 14px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--ivory-2);
+}
+.explore-group {
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 14px/1.2 var(--font);
+  cursor: pointer;
+}
+.explore-group.active {
+  background: var(--paper);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ==========================================================================
+   HAIQ v2 — Today screen (Mobbin-based redesign)
+   ========================================================================== */
+.t2 {
+  padding: 8px 20px 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.t2-top h1 {
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 4px 0 0;
+  color: var(--ink);
+}
+.t2-loc {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+.t2-loc svg {
+  width: 15px;
+  height: 15px;
+}
+.t2-tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 18px -4px 0;
+}
+.t2-tools > * {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: 44px;
+}
+.t2-tools span {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--wine-soft);
+  display: grid;
+  place-items: center;
+}
+.t2-tools svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: var(--wine);
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.t2-tools small {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-top: -2px;
+}
+.t2-section {
+  margin-top: 24px;
+}
+.t2-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.t2-head h2 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 2px 0 0;
+  color: var(--ink);
+}
+.t2-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--wine);
+  margin: 0;
+}
+.t2-deal {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+}
+.t2-deal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.t2-deal-top strong {
+  display: block;
+  font-size: 15.5px;
+}
+.t2-deal-top small {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.t2-deal-top b {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--wine);
+  flex-shrink: 0;
+}
+.t2-deal img {
+  display: block;
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+}
+.t2-deal-note {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 8px 14px;
+}
+.t2-cards {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  margin: 0 -20px;
+  padding: 0 20px 4px;
+  scrollbar-width: none;
+}
+.t2-cards::-webkit-scrollbar {
+  display: none;
+}
+.t2-card {
+  position: relative;
+  flex: 0 0 200px;
+  height: 150px;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  scroll-snap-align: start;
+  text-align: left;
+}
+.t2-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.t2-card-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(23, 21, 26, 0) 35%, rgba(23, 21, 26, 0.78) 100%);
+}
+.t2-card-copy {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  color: #fff;
+}
+.t2-card-copy small {
+  display: block;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.t2-card-copy strong {
+  display: block;
+  font-size: 15.5px;
+}
+.t2-ask {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(14px + 64px + 10px + var(--safe-b, 0px));
+  z-index: 901;
+  width: calc(100% - 32px);
+  max-width: 568px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 0 8px;
+  border-radius: 25px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: 0 4px 18px rgba(23, 21, 26, 0.1);
+  color: var(--muted);
+  font-size: 15px;
+  text-align: left;
+}
+.t2-ask img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: var(--ivory);
+}
+.t2-ask span {
+  flex: 1;
+}
+.t2-ask i {
+  font-style: normal;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--wine);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+}
+body[data-screen="homeScreen"] main {
+  padding-bottom: calc(var(--nav-h) + var(--safe-b) + 150px);
+}
