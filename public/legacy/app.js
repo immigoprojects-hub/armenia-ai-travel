@@ -3626,6 +3626,7 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   if (b.dataset.lang) {
     haiq.lang = b.dataset.lang;
+    writeStored("haiq-lang", haiq.lang);
     renderAll();
     $("#chatLog").innerHTML = "";
     addMessage("assistant", araReply(""));
@@ -3687,6 +3688,61 @@ document.addEventListener("click", (e) => {
   }
 });
 
+/* ---------- first-launch welcome ---------- */
+const WELCOME_KEY = "haiq-welcome-v1";
+function welcomeHtml() {
+  const rows = [
+    [
+      "%",
+      ht("Discounts at partner places", "Скидки в заведениях-партнёрах"),
+      ht(
+        "Show the QR at the venue. First partners are joining now.",
+        "Покажите QR на месте. Первые партнёры подключаются.",
+      ),
+    ],
+    [
+      ICON.pin,
+      ht("What to do today", "Что делать сегодня"),
+      ht(
+        "Food, wine, day trips, museums — with hours and route.",
+        "Еда, вино, поездки, музеи — с часами работы и маршрутом.",
+      ),
+    ],
+    [
+      "֏",
+      ht("Money, SIM, taxi", "Деньги, SIM, такси"),
+      ht(
+        "Where to exchange, which SIM, how to get around.",
+        "Где обменять, какую SIM взять, как передвигаться.",
+      ),
+    ],
+    [
+      `<img src="${araSrc()}" alt="">`,
+      ht("Ara answers in RU & EN", "Ара отвечает на RU и EN"),
+      ht("Ask anything about Armenia, any time.", "Спросите что угодно об Армении, в любое время."),
+    ],
+  ];
+  return `<div class="welcome"><span class="haiq-logo-mark welcome-mark">հ</span><h1>${ht("Barev! This is HAIQ", "Барев! Это HAIQ")}</h1><p class="welcome-lead">${ht("Your pocket guide to Armenia. Free, no registration.", "Ваш карманный гид по Армении. Бесплатно и без регистрации.")}</p><ul class="welcome-list">${rows.map(([i, t, d]) => `<li><span class="welcome-ico">${i}</span><div><strong>${t}</strong><small>${d}</small></div></li>`).join("")}</ul><div class="welcome-lang lang-switch"><button data-lang="en" class="${haiq.lang === "en" ? "active" : ""}">English</button><button data-lang="ru" class="${haiq.lang === "ru" ? "active" : ""}">Русский</button></div><button class="primary-button welcome-go" data-welcome-done>${ht("Start", "Начать")}</button></div>`;
+}
+function showWelcome() {
+  if (readStored(WELCOME_KEY, false)) return;
+  const el = document.createElement("div");
+  el.className = "welcome-overlay";
+  el.id = "welcomeOverlay";
+  el.innerHTML = welcomeHtml();
+  document.body.append(el);
+}
+document.addEventListener("click", (e) => {
+  const overlay = $("#welcomeOverlay");
+  if (!overlay) return;
+  if (e.target.closest("[data-welcome-done]")) {
+    writeStored(WELCOME_KEY, true);
+    overlay.remove();
+  } else if (e.target.closest("#welcomeOverlay [data-lang]")) {
+    setTimeout(() => overlay && (overlay.innerHTML = welcomeHtml()), 0);
+  }
+});
+
 /* ---------- boot ---------- */
 document
   .querySelector(".app-shell")
@@ -3694,6 +3750,11 @@ document
     "afterbegin",
     `<header class="haiq-header"><a class="haiq-logo" href="/" aria-label="HAIQ home"><span class="haiq-logo-mark">հ</span><span><strong>HAIQ<span class="logo-dot">.</span></strong><small>ARMENIA TRAVEL GUIDE</small></span></a><div class="haiq-header-right"><span class="location-label">${ICON.pin} Yerevan, Armenia</span><button class="header-ara" data-open-concierge aria-label="Ask Ara"><img src="${araSrc()}" alt="" width="60" height="60">Ara</button><div class="lang-switch" aria-label="Language"><button data-lang="en" class="active" aria-pressed="true">EN</button><button data-lang="ru" aria-pressed="false">RU</button></div></div></header>`,
   );
+{
+  const saved = readStored("haiq-lang", null);
+  const deviceRu = /^(ru|hy|uk|be|kk)/i.test(navigator.language || "");
+  haiq.lang = saved === "ru" || saved === "en" ? saved : deviceRu ? "ru" : "en";
+}
 if (!state.plan.length) buildPlan(false);
 persistTrip();
 addMessage("assistant", araReply(""));
@@ -3704,6 +3765,7 @@ document.body.dataset.screen = "homeScreen";
 renderAll();
 loadGooglePlacesEnrichment();
 loadWeather();
+showWelcome();
 export {
   state,
   dayPlan,

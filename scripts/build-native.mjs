@@ -42,12 +42,12 @@ const appShell = await readFile(path.join(root, "src/legacy/app-shell.html"), "u
 
 // Mirrors the <head> the TanStack shell renders (src/routes/__root.tsx + index.tsx).
 const html = `<!doctype html>
-<html lang="en" class="native-app">
+<html lang="en" class="native-app" data-ara-image="/assets/ara.png">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="format-detection" content="telephone=no" />
-    <title>Armenia AI</title>
+    <title>HAIQ</title>
     <link rel="stylesheet" href="/assets/${baseCss[0]}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -57,7 +57,7 @@ const html = `<!doctype html>
     <script>window.ARMENIA_API_BASE = ${JSON.stringify(apiBase)};</script>
   </head>
   <body>
-    <div>${appShell}</div>
+    <div>${appShell.replaceAll("__ARA_IMAGE__", "/assets/ara.png")}</div>
     <script type="module" src="/legacy/app.js" onerror="document.querySelector('#todayRoot').textContent='Your trip could not load. Please restart the app.'"></script>
   </body>
 </html>

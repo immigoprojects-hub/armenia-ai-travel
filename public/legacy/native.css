@@ -48,3 +48,16 @@ html.native-app .map-top {
 html.native-app .dialog {
   max-height: calc(100dvh - var(--safe-t) - 12px);
 }
+
+/* Light theme everywhere: the status-bar strip matches the page, and the HAIQ header
+   starts below the clock / Dynamic Island. */
+html.native-app body[data-screen="homeScreen"],
+html.native-app body[data-screen="homeScreen"]::before {
+  background: var(--ivory);
+}
+html.native-app .haiq-header {
+  padding-top: calc(10px + var(--safe-t));
+}
+html.native-app .welcome {
+  padding-top: calc(32px + var(--safe-t));
+}
