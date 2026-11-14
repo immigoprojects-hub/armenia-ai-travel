@@ -61,3 +61,16 @@ html.native-app .haiq-header {
 html.native-app .welcome {
   padding-top: calc(32px + var(--safe-t));
 }
+
+/* The header has a fixed height, so the safe-area padding must be added to it,
+   otherwise the logo spills onto the page below. Screens below the header then
+   need no extra safe-area padding of their own. */
+html.native-app .haiq-header {
+  height: calc(78px + var(--safe-t));
+}
+html.native-app body:not([data-screen="homeScreen"]) .haiq-header {
+  height: calc(56px + var(--safe-t));
+}
+html.native-app .screen-pad {
+  padding-top: 20px;
+}

@@ -3509,7 +3509,40 @@ Object.assign(ruWords, moreRussian, {
   days: "дней",
   day: "день",
   "days in Armenia": "дней в Армении",
+  "Arrival setup and logistics": "Прилёт и обустройство",
+  "Free day in Yerevan": "Свободный день в Ереване",
+  "Garni and Geghard": "Гарни и Гегард",
+  "Khor Virap and Noravank": "Хор Вирап и Нораванк",
+  "Lake Sevan and Dilijan": "Севан и Дилижан",
+  "Tatev long-drive option": "Татев (долгая дорога)",
+  "Yerevan first day": "Первый день в Ереване",
+  "Yerevan food and cafes": "Еда и кафе Еревана",
+  "Check availability": "Проверить наличие",
+  "Find a driver": "Найти водителя",
+  "Reduce driving": "Меньше дороги",
+  "Review day": "Посмотреть день",
 });
+// Whole-sentence patterns built from data (My plan header and "Needs attention").
+const ruName = (x) => ruWords[x] || x;
+const ruPatterns = [
+  [/^My Trip · (\d+) days · dates flexible$/, (m, n) => `Моя поездка · ${n} дн. · даты гибкие`],
+  [/^My Trip · (.+)$/, (m, r) => `Моя поездка · ${r}`],
+  [/^(.+) · next (.+) at (\d\d:\d\d)$/, (m, t, p, h) => `${ruName(t)} · далее ${ruName(p)} в ${h}`],
+  [/^You still need transport to (.+)$/, (m, p) => `Нужен транспорт до: ${ruName(p)}`],
+  [
+    /^Day (\d+) has (.+) of driving$/,
+    (m, d, t) =>
+      `День ${d}: в дороге ${t
+        .replace(/(\d+) ?min/, "$1 мин")
+        .replace(/(\d)h/, "$1 ч")
+        .replace(/(\d+)m$/, "$1 мин")}`,
+  ],
+  [
+    /^(.+) may close before you arrive at (\d\d:\d\d)$/,
+    (m, p, h) => `${ruName(p)} может закрыться до вашего прихода в ${h}`,
+  ],
+  [/^Your stay at (.+) isn't booked yet$/, (m, p) => `Жильё ${p} ещё не забронировано`],
+];
 function localizeHaiq() {
   document.documentElement.lang = haiq.lang;
   document.querySelectorAll("[data-lang]").forEach((b) => {
@@ -3533,6 +3566,10 @@ function localizeHaiq() {
       else if (/^\d+ days?$/.test(original)) node.textContent = original.replace(/days?/, "дней");
       else if (/^\d+ stops?$/.test(original))
         node.textContent = original.replace(/stops?/, "остановок");
+      else {
+        const hit = ruPatterns.find(([re]) => re.test(original));
+        if (hit) node.textContent = original.replace(hit[0], hit[1]);
+      }
     } else node.textContent = node._en;
   }
   $("#chatInput").placeholder = ht("Ask Ara about Armenia…", "Спросите Ару об Армении…");
