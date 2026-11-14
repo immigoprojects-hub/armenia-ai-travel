@@ -1728,6 +1728,8 @@ function renderMyTrip() {
       </div>
     </header>
 
+    ${todayTimelineTemplate(tp)}
+
     ${
       issues.length
         ? `
@@ -1792,6 +1794,26 @@ function renderMyTrip() {
 
     <div class="trip-foot"><button class="text-link muted" data-reset-trip>Start over with a fresh trip</button></div>
   `;
+}
+// "My plan": today by the hour, with an estimated walk or taxi between stops.
+function todayTimelineTemplate(tp) {
+  const stops = tp.stops;
+  if (!stops.length) return "";
+  const rows = stops
+    .map((s, i) => {
+      const nxt = stops[i + 1];
+      let move = "";
+      if (nxt) {
+        const km = haversine(coords(s.entity), coords(nxt.entity));
+        move =
+          km < 1.5
+            ? `<p class="tl-move">🚶 ${ht(`~${Math.max(3, Math.round((km / 4.5) * 60))} min walk`, `~${Math.max(3, Math.round((km / 4.5) * 60))} мин пешком`)}</p>`
+            : `<p class="tl-move">🚕 ${ht(`~${nxt.leg} min by car`, `~${nxt.leg} мин на машине`)} <a class="text-link" href="https://go.yandex/" target="_blank" rel="noreferrer">${ht("Taxi", "Такси")} ↗</a></p>`;
+      }
+      return `<li class="tl-row"><div class="tl-time"><b>${fmtTime(s.arrive)}</b><span class="tl-dot"></span>${nxt ? '<span class="tl-line"></span>' : ""}</div><div class="tl-body"><button class="tl-card detail-button" data-id="${s.entity.id}"><img src="${entityImage(s.entity)}" ${imageFallbackAttr(s.entity)} alt="" width="120" height="120" loading="lazy"><span><strong>${escapeHtml(shortName(s.entity))}</strong><small>${ht(`~${s.duration} min there`, `~${s.duration} мин на месте`)}</small></span></button>${move}</div></li>`;
+    })
+    .join("");
+  return `<section class="block tl"><h2 class="block-title">${ht("Today by the hour", "Сегодня по часам")}</h2><ol class="tl-list">${rows}</ol><p class="mock-note">${ht("Times are estimates by distance", "Время примерное, по расстоянию")}</p></section>`;
 }
 function tripRouteSvg() {
   const points = state.plan.map((day) => dayPlan(day).stops.map((s) => coords(s.entity)));
@@ -3020,8 +3042,13 @@ function renderHaiqToday() {
 <a href="https://go.yandex/" target="_blank" rel="noreferrer"><span>${toolIcon("taxi")}</span>${ht("Taxi", "Такси")}<small>Yandex Go</small></a>
 <button data-first-day><span>${toolIcon("help")}</span>${ht("Help", "Помощь")}<small>${ht("First day", "Первый день")}</small></button></div>`;
   const deal = c
-    ? `<section class="t2-section"><div class="t2-head"><div><p class="t2-kicker">${ht("DEAL OF THE DAY", "СКИДКА ДНЯ")}</p><h2>${ht("A new one every day", "Каждый день новая")}</h2></div><button class="text-link" data-screen-target="dealsScreen">${ht("All", "Все")}</button></div><button class="t2-deal" data-coupon="${c.id}"><span class="t2-deal-top"><span><strong>${escapeHtml(c.partner)}</strong><small>${escapeHtml(ht(c.distance, c.distance.replace("km", "км").replace("m", "м")))} · ${escapeHtml(c.title[L])}</small></span><b>−${c.off}%</b></span><img src="${dealPhoto(c)}" alt="" width="1200" height="800" loading="lazy"><span class="t2-deal-note">${ht("Sample partner offer · not redeemable yet", "Пример предложения партнёра · пока не действует")}</span></button></section>`
+    ? `<section class="t2-section"><button class="t2-deal2" data-coupon="${c.id}"><span class="t2-deal2-img"><img src="${dealPhoto(c)}" alt="" width="128" height="128" loading="lazy"><b>−${c.off}%</b></span><span class="t2-deal2-copy"><small>${ht("DEAL OF THE DAY", "СКИДКА ДНЯ")}</small><strong>${escapeHtml(c.partner)}</strong><em>${escapeHtml(ht(c.distance, c.distance.replace("km", "км").replace("m", "м")))} · ${escapeHtml(c.title[L])}</em></span><span class="t2-deal2-price"><s>${fmtAmd(c.bill)}</s><b>${fmtAmd(c.bill - couponSave(c))}</b></span></button><p class="t2-deal-note">${ht("Sample partner offer · not redeemable yet · typical bill per person", "Пример предложения партнёра · пока не действует · средний чек на человека")}</p></section>`
     : "";
+  const ru = haiq.lang === "ru";
+  const events = `<section class="t2-section"><div class="t2-head"><div><p class="t2-kicker">${ht("WHAT’S ON", "АФИША")}</p><h2>${ht("Today in Yerevan", "Сегодня в Ереване")}</h2></div></div><div class="t2-events">
+<a href="https://www.visityerevan.am/browse/things-to-do-events/${ru ? "ru" : "en"}" target="_blank" rel="noreferrer"><span class="t2-ev-ico">🎭</span><span><strong>${ht("City events", "События города")}</strong><small>${ht("Concerts, exhibitions, festivals · official Visit Yerevan", "Концерты, выставки, фестивали · официальный Visit Yerevan")}</small></span><i>↗</i></a>
+<a href="https://www.tomsarkgh.am/" target="_blank" rel="noreferrer"><span class="t2-ev-ico">🎟</span><span><strong>${ht("Tickets for tonight", "Билеты на вечер")}</strong><small>${ht("Theatre, concerts, cinema · Tomsarkgh", "Театр, концерты, кино · Tomsarkgh")}</small></span><i>↗</i></a>
+</div></section>`;
   const stops = p.stops.slice(0, 4);
   const plan = stops.length
     ? `<section class="t2-section"><div class="t2-head t2-pad"><div><p class="t2-kicker">${ht("ARA’S PLAN FOR TODAY", "ПЛАН АРЫ НА СЕГОДНЯ")}</p><h2>${ht("Your day", "Ваш день")}</h2></div><button class="text-link" data-screen-target="mapScreen">${ht("Map", "Карта")}</button></div><div class="t2-cards">${stops
@@ -3033,7 +3060,7 @@ function renderHaiqToday() {
     : "";
   $("#todayRoot").innerHTML = `<div class="t2">
 <header class="t2-top"><p class="t2-loc">${ICON.pin} ${ht("Yerevan", "Ереван")}<span id="t2Weather">${weatherShort()}</span></p><h1>${greetingText()}</h1></header>
-${tools}${deal}${plan}
+${tools}${deal}${events}${plan}
 <p class="prototype-note">${ht("Partner offers are examples until partners join · places & hours from Google", "Предложения — примеры, пока партнёры не подключены · места и часы из Google")}</p>
 <button class="t2-ask" data-open-concierge><img src="${araSrc()}" alt="" width="64" height="64"><span>${ht("Ask Ara…", "Спросить Ару…")}</span><i aria-hidden="true">↑</i></button>
 </div>`;
@@ -3724,6 +3751,61 @@ function welcomeHtml() {
   ];
   return `<div class="welcome"><span class="haiq-logo-mark welcome-mark">հ</span><h1>${ht("Barev! This is HAIQ", "Барев! Это HAIQ")}</h1><p class="welcome-lead">${ht("Your pocket guide to Armenia. Free, no registration.", "Ваш карманный гид по Армении. Бесплатно и без регистрации.")}</p><ul class="welcome-list">${rows.map(([i, t, d]) => `<li><span class="welcome-ico">${i}</span><div><strong>${t}</strong><small>${d}</small></div></li>`).join("")}</ul><div class="welcome-lang lang-switch"><button data-lang="en" class="${haiq.lang === "en" ? "active" : ""}">English</button><button data-lang="ru" class="${haiq.lang === "ru" ? "active" : ""}">Русский</button></div><button class="primary-button welcome-go" data-welcome-done>${ht("Start", "Начать")}</button></div>`;
 }
+// Three quick questions after the welcome card. Answers stay on the phone ("haiq-prefs").
+const ONB = [
+  {
+    key: "who",
+    multi: false,
+    q: ["Who are you with in Armenia?", "С кем вы в Армении?"],
+    sub: ["So Ara suggests the right places", "Чтобы Ара советовал подходящие места"],
+    opts: [
+      ["solo", "🧳", "Solo", "Один / одна"],
+      ["couple", "❤️", "As a couple", "Вдвоём"],
+      ["friends", "🎉", "With friends", "С друзьями"],
+      ["family", "👨‍👩‍👧", "With family & kids", "С семьёй и детьми"],
+    ],
+  },
+  {
+    key: "likes",
+    multi: true,
+    q: ["What do you enjoy?", "Что вам интересно?"],
+    sub: ["Pick a few", "Можно выбрать несколько"],
+    opts: [
+      ["history", "⛪", "History", "История"],
+      ["food", "🍷", "Food & wine", "Еда и вино"],
+      ["nature", "⛰️", "Nature", "Природа"],
+      ["shows", "🎭", "Concerts & shows", "Концерты"],
+      ["shopping", "🛍️", "Shopping", "Шопинг"],
+      ["night", "🌙", "Nightlife", "Ночная жизнь"],
+    ],
+  },
+  {
+    key: "days",
+    multi: false,
+    q: ["How long are you here?", "Сколько дней вы здесь?"],
+    sub: ["Ara will spread places across days", "Ара разложит места по дням"],
+    opts: [
+      ["1-2", "☀️", "1–2 days", "1–2 дня"],
+      ["3-5", "🗓️", "3–5 days", "3–5 дней"],
+      ["week", "🧭", "A week or more", "Неделя и больше"],
+      ["local", "🏠", "I live in Armenia", "Я живу в Армении"],
+    ],
+  },
+];
+const onb = { step: -1, ans: readStored("haiq-prefs", null) || { who: "", likes: [], days: "" } };
+function onbHtml() {
+  const s = ONB[onb.step],
+    L = haiq.lang === "ru" ? 1 : 0,
+    val = onb.ans[s.key];
+  const on = (id) => (s.multi ? (val || []).includes(id) : val === id);
+  const ready = s.multi ? (val || []).length > 0 : !!val;
+  return `<div class="welcome onb"><div class="onb-top"><div class="onb-bars">${ONB.map((_, i) => `<span class="${i <= onb.step ? "on" : ""}"></span>`).join("")}</div><button class="onb-skip" data-onb-skip>${ht("Skip", "Пропустить")}</button></div><p class="onb-step"><img src="${araSrc()}" alt="" width="44" height="44">${ht(`Question ${onb.step + 1} of 3`, `Вопрос ${onb.step + 1} из 3`)}</p><h1>${s.q[L]}</h1><p class="welcome-lead">${s.sub[L]}</p><div class="onb-opts ${s.multi ? "grid" : ""}">${s.opts.map(([id, e, en, ru]) => `<button class="onb-opt ${on(id) ? "on" : ""}" data-onb-pick="${id}" aria-pressed="${on(id)}"><span>${e}</span>${ht(en, ru)}<i></i></button>`).join("")}</div><p class="onb-note">${ht("No registration. Answers stay on your phone.", "Без регистрации. Ответы остаются только на телефоне.")}</p><button class="primary-button welcome-go" data-onb-next ${ready ? "" : "disabled"}>${onb.step === 2 ? ht("Done", "Готово") : ht("Next", "Дальше")}</button></div>`;
+}
+function closeWelcome() {
+  writeStored(WELCOME_KEY, true);
+  writeStored("haiq-prefs", onb.ans);
+  $("#welcomeOverlay")?.remove();
+}
 function showWelcome() {
   if (readStored(WELCOME_KEY, false)) return;
   const el = document.createElement("div");
@@ -3735,11 +3817,26 @@ function showWelcome() {
 document.addEventListener("click", (e) => {
   const overlay = $("#welcomeOverlay");
   if (!overlay) return;
+  const draw = () => (overlay.innerHTML = onb.step < 0 ? welcomeHtml() : onbHtml());
   if (e.target.closest("[data-welcome-done]")) {
-    writeStored(WELCOME_KEY, true);
-    overlay.remove();
+    onb.step = 0;
+    draw();
+  } else if (e.target.closest("[data-onb-skip]")) {
+    closeWelcome();
+  } else if (e.target.closest("[data-onb-next]")) {
+    if (onb.step >= ONB.length - 1) return closeWelcome();
+    onb.step += 1;
+    draw();
+  } else if (e.target.closest("[data-onb-pick]")) {
+    const id = e.target.closest("[data-onb-pick]").dataset.onbPick,
+      s = ONB[onb.step];
+    if (s.multi) {
+      const list = onb.ans[s.key] || [];
+      onb.ans[s.key] = list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+    } else onb.ans[s.key] = id;
+    draw();
   } else if (e.target.closest("#welcomeOverlay [data-lang]")) {
-    setTimeout(() => overlay && (overlay.innerHTML = welcomeHtml()), 0);
+    setTimeout(draw, 0);
   }
 });
 
