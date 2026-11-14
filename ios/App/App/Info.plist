@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>HAIQ uses your location to show where you are on today's route.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>HAIQ uses your location only while you use the app, to show where you are on today's route.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
