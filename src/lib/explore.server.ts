@@ -36,7 +36,7 @@ export const EXPLORE_CATEGORIES: Record<string, string[]> = {
   carrental: ["car rental Yerevan"],
 };
 
-const FIELD_MASK = [
+export const FIELD_MASK = [
   "places.id",
   "places.displayName",
   "places.formattedAddress",
@@ -51,7 +51,7 @@ const FIELD_MASK = [
   "places.photos",
 ].join(",");
 
-type GooglePlace = {
+export type GooglePlace = {
   id?: string;
   displayName?: { text?: string };
   formattedAddress?: string;
@@ -93,7 +93,11 @@ function photoUrl(name: string | undefined, apiKey: string): string | null {
   return `/api/public/place-photo?name=${encodeURIComponent(name)}&w=600&h=450&sig=${sig}`;
 }
 
-export function normalizePlaces(places: GooglePlace[], apiKey: string): ExplorePlace[] {
+export function normalizePlaces(
+  places: GooglePlace[],
+  apiKey: string,
+  { byRating = true, limit = MAX_RESULTS }: { byRating?: boolean; limit?: number } = {},
+): ExplorePlace[] {
   const seen = new Set<string>();
   const out: ExplorePlace[] = [];
   for (const p of places) {
@@ -118,7 +122,7 @@ export function normalizePlaces(places: GooglePlace[], apiKey: string): ExploreP
   }
   // Well-reviewed places first; a 5.0 from 3 reviews should not beat a 4.6 from 900.
   const score = (p: ExplorePlace) => (p.rating || 0) * Math.log10((p.reviews || 0) + 10);
-  return out.sort((a, b) => score(b) - score(a)).slice(0, MAX_RESULTS);
+  return (byRating ? out.sort((a, b) => score(b) - score(a)) : out).slice(0, limit);
 }
 
 async function search(query: string, lang: string, apiKey: string): Promise<GooglePlace[]> {

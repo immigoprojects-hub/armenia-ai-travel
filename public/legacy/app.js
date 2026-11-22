@@ -2863,7 +2863,7 @@ async function loadGooglePlacesEnrichment() {
 }
 
 /* HAIQ — mock-only presentation layer. Original routing algorithms retained. */
-const haiq = { lang: "en", wallet: [], nearby: 0, filter: "all" };
+const haiq = { lang: "en", wallet: [], filter: "all", geo: null, nearOpen: false };
 const ht = (en, ru) => (haiq.lang === "ru" ? ru : en);
 const araSrc = () =>
   document.documentElement.dataset.araImage || document.querySelector(".ara-float img")?.src;
@@ -2946,29 +2946,6 @@ const coupons = [
     desc: ["An afternoon of hidden stories.", "Прогулка по тайным историям города."],
   },
 ];
-const nearbyItems = [
-  {
-    id: "mirzoyan-library",
-    type: ["Place", "Место"],
-    title: ["A courtyard worth finding", "Дворик, который стоит найти"],
-    sub: [
-      "Mirzoyan Library · 600 m · coffee & culture",
-      "Библиотека Мирзояна · 600 м · кофе и культура",
-    ],
-  },
-  {
-    id: "republic-square",
-    type: ["Event", "Событие"],
-    title: ["An evening at Republic Square", "Вечер на площади Республики"],
-    sub: ["Evening city walk · 19:00 · sample event", "Вечерняя прогулка · 19:00 · пример события"],
-  },
-  {
-    id: "lavash-restaurant",
-    type: ["Deal", "Скидка"],
-    title: ["Your next delicious stop", "Ваша следующая вкусная остановка"],
-    sub: ["Lavash · 350 m · 20% off sample offer", "Lavash · 350 м · пример скидки 20%"],
-  },
-];
 // Live weather for Yerevan from Open-Meteo (free, no key). Until it loads, or if it
 // fails, Ara greets without numbers instead of showing made-up weather.
 const WEATHER_CODES = [
@@ -3028,6 +3005,7 @@ const TOOL_ICONS = {
   sim: '<path d="M7 3h7l4 4v14H7V3Z"/><path d="M10 13h5v4h-5z"/>',
   taxi: '<path d="M5 16h14M6 16l1.5-6h9L18 16M7 16v3M17 16v3"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/>',
+  near: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
 };
 const toolIcon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${TOOL_ICONS[k]}</svg>`;
 function renderHaiqToday() {
@@ -3037,6 +3015,7 @@ function renderHaiqToday() {
     c = dealOfDay(),
     L = haiq.lang === "ru" ? 1 : 0;
   const tools = `<div class="t2-tools">
+<button data-explore-go="near"><span>${toolIcon("near")}</span>${ht("Near me", "Рядом")}<small>${ht("Open now", "Что открыто")}</small></button>
 <button data-explore-go="money"><span>${toolIcon("money")}</span>${ht("Exchange", "Обмен")}<small>${ht("ATMs", "Банкоматы")}</small></button>
 <button data-explore-go="sim"><span>${toolIcon("sim")}</span>SIM<small>${ht("Internet", "Интернет")}</small></button>
 <a href="https://go.yandex/" target="_blank" rel="noreferrer"><span>${toolIcon("taxi")}</span>${ht("Taxi", "Такси")}<small>Yandex Go</small></a>
@@ -3067,6 +3046,11 @@ ${tools}${deal}${events}${plan}
 }
 /* ---------- Explore: live places by category (Google Places) ---------- */
 const EXPLORE = [
+  ["near", "📍", "All", "Всё", "near"],
+  ["near-food", "🍽", "Food", "Еда", "near"],
+  ["near-coffee", "☕", "Coffee", "Кофе", "near"],
+  ["near-bars", "🍷", "Bars", "Бары", "near"],
+  ["near-sights", "⭐", "Sights", "Интересное", "near"],
   ["food", "🍽", "Food", "Еда", "eat"],
   ["coffee", "☕", "Coffee", "Кофе", "eat"],
   ["wine", "🍷", "Wine bars", "Винные бары", "eat"],
@@ -3074,12 +3058,13 @@ const EXPLORE = [
   ["clubs", "🪩", "Clubs", "Клубы", "eat"],
   ["hookah", "💨", "Hookah", "Кальян", "eat"],
   ["karaoke", "🎤", "Karaoke", "Караоке", "eat"],
+  ["tours", "🧭", "Popular routes", "Популярные маршруты", "tours"],
   ["free", "🆓", "Free to visit", "Бесплатно", "do"],
   ["museums", "🏛", "Museums", "Музеи", "do"],
-  ["daytrips", "🚐", "Day trips", "Поездки на день", "do"],
-  ["winetours", "🍇", "Wineries", "Винодельни", "do"],
-  ["sky", "🚁", "Helicopter & paragliding", "Вертолёт и параплан", "do"],
-  ["hiking", "🥾", "Hiking", "Походы", "do"],
+  ["daytrips", "🚐", "Day trips", "Поездки на день", "tours"],
+  ["winetours", "🍇", "Wineries", "Винодельни", "tours"],
+  ["sky", "🚁", "Helicopter & paragliding", "Вертолёт и параплан", "tours"],
+  ["hiking", "🥾", "Hiking", "Походы", "tours"],
   ["quests", "🗝", "Quests", "Квесты", "do"],
   ["spa", "💆", "Spa & massage", "Спа и массаж", "do"],
   ["money", "💱", "Money & ATMs", "Деньги и банкоматы", "help"],
@@ -3089,10 +3074,159 @@ const EXPLORE = [
   ["souvenirs", "🛍", "Souvenirs & markets", "Сувениры и рынки", "help"],
 ];
 const EXPLORE_GROUPS = [
+  ["near", "Near me", "Рядом"],
   ["eat", "Eat & night", "Еда и ночь"],
   ["do", "Things to do", "Чем заняться"],
+  ["tours", "Tours", "Туры"],
   ["help", "Useful", "Полезное"],
 ];
+/* ---------- Tours: popular routes, booked on partner sites (we never invent prices) ---------- */
+const GYG = "https://www.getyourguide.com/yerevan-l1406/";
+const TRIPSTER = "https://experience.tripster.ru/experience/Yerevan/";
+const TOUR_ROUTES = [
+  [
+    "geghard-monastery",
+    ["Garni, Geghard & Symphony of Stones", "Гарни, Гегард и Симфония камней"],
+    ["~6 h · often with lavash baking", "~6 ч · часто с выпечкой лаваша"],
+  ],
+  [
+    "sevanavank-lake-sevan",
+    ["Lake Sevan & Dilijan", "Севан и Дилижан"],
+    ["~9–10 h · monasteries on the way", "~9–10 ч · монастыри по пути"],
+  ],
+  [
+    "khor-virap",
+    ["Khor Virap, Noravank & Areni wine", "Хор Вирап, Нораванк и вина Арени"],
+    ["~8–9 h · view of Ararat", "~8–9 ч · вид на Арарат"],
+  ],
+  [
+    "tatev-monastery",
+    ["Tatev & the Wings of Tatev ropeway", "Татев и канатная дорога «Крылья Татева»"],
+    ["~11–15 h · long day", "~11–15 ч · длинный день"],
+  ],
+  [
+    "",
+    ["Echmiadzin & Zvartnots", "Эчмиадзин и Звартноц"],
+    ["~4 h · UNESCO sites", "~4 ч · объекты ЮНЕСКО"],
+  ],
+  [
+    "republic-square",
+    ["Yerevan walking tour with a local guide", "Ереван пешком с местным гидом"],
+    ["~2–4 h · day or evening", "~2–4 ч · днём или вечером"],
+  ],
+];
+function tourPhoto(id) {
+  const e = id && getEntityById(id);
+  return e
+    ? `<img src="${entityImage(e)}" ${imageFallbackAttr(e)} alt="" width="200" height="200" loading="lazy">`
+    : `<span class="tour-ph" aria-hidden="true">🧭</span>`;
+}
+function toursTemplate() {
+  const L = haiq.lang === "ru" ? 1 : 0;
+  return `<article class="money-tip tours-tip"><h3>${ht("How booking works", "Как бронировать")}</h3><p>${ht("Pick a route, then compare dates and prices on a trusted partner. You pay on their site.", "Выберите маршрут, затем сравните даты и цены у проверенного партнёра. Оплата — на его сайте.")}</p><div class="tour-partners"><a class="tour-btn" href="${TRIPSTER}" target="_blank" rel="noreferrer">Трипстер · ${ht("in Russian", "на русском")} ↗</a><a class="tour-btn" href="${GYG}" target="_blank" rel="noreferrer">GetYourGuide ↗</a></div></article><div class="tour-list">${TOUR_ROUTES.map(
+    ([id, name, meta]) =>
+      `<article class="tour-row">${tourPhoto(id)}<div><h3>${name[L]}</h3><p>${meta[L]}</p><div class="tour-links"><a class="text-link" href="${TRIPSTER}" target="_blank" rel="noreferrer">Трипстер ↗</a><a class="text-link" href="${GYG}" target="_blank" rel="noreferrer">GetYourGuide ↗</a></div></div></article>`,
+  ).join(
+    "",
+  )}</div><p class="mock-note">${ht("Durations are typical for these routes; exact times, prices and reviews are on the partner site. Local agencies are in the next tabs.", "Длительность — типичная для маршрута; точное время, цены и отзывы — на сайте партнёра. Местные турфирмы — в соседних вкладках.")}</p>`;
+}
+/* ---------- Car rental: what you need + where to compare ---------- */
+function carsTemplate() {
+  return `<article class="money-tip"><h3>${ht("Renting a car in Armenia", "Аренда авто в Армении")}</h3><ul><li>${ht("Category B licence with your name in Latin letters.", "Права категории B с именем латиницей.")}</li><li>${ht("The passport you entered Armenia with.", "Паспорт, по которому вы въехали в Армению.")}</li><li>${ht("US and Canadian licences need an International Driving Permit.", "Права США и Канады — только вместе с международными.")}</li><li>${ht("For Tatev, Dilijan or Aragats a crossover / 4×4 is more comfortable.", "Для Татева, Дилижана или Арагаца удобнее кроссовер или 4×4.")}</li></ul><div class="tour-partners"><a class="tour-btn" href="https://localrent.com/en/armenia/yerevan/" target="_blank" rel="noreferrer">Localrent · ${ht("local companies", "местные прокаты")} ↗</a></div><small>${ht("Rules can change — check the rental terms before booking.", "Правила могут меняться — проверьте условия проката перед бронью.")}</small></article>`;
+}
+/* ---------- Near me: real places around the traveller (Google Places Nearby) ---------- */
+const nearCache = {};
+function distKm(a, b) {
+  const r = 6371,
+    dLat = ((b.lat - a.lat) * Math.PI) / 180,
+    dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(h));
+}
+function fmtDist(km) {
+  return km < 1
+    ? `${Math.max(10, Math.round((km * 1000) / 10) * 10)} ${ht("m", "м")}`
+    : `${km.toFixed(1)} ${ht("km", "км")}`;
+}
+function locateMe(ask) {
+  if (!navigator.geolocation) {
+    haiq.geo = { error: "unsupported" };
+    return renderExploreScreen();
+  }
+  haiq.geo = { pending: true };
+  if (ask) renderExploreScreen();
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      haiq.geo = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      renderExploreScreen();
+    },
+    () => {
+      haiq.geo = { error: "denied" };
+      renderExploreScreen();
+    },
+    { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 },
+  );
+}
+function nearBodyTemplate(id) {
+  const g = haiq.geo;
+  if (!g || g.pending)
+    return g?.pending
+      ? `<p class="explore-loading">${ht("Finding where you are…", "Ищем, где вы…")}</p>`
+      : `<article class="near-ask"><span aria-hidden="true">📍</span><h3>${ht("See what’s around you", "Посмотрите, что рядом")}</h3><p>${ht("Cafés, restaurants, bars and sights within a 15-minute walk, nearest first. Your location stays on your phone and is used only for this search.", "Кафе, рестораны, бары и интересные места в 15 минутах пешком, ближайшие сверху. Геолокация используется только для этого поиска.")}</p><button class="tour-btn near-btn" data-near-locate>${ht("Use my location", "Определить, где я")}</button><button class="text-link" data-near-center>${ht("Show central Yerevan instead", "Показать центр Еревана")}</button></article>`;
+  if (g.error)
+    return `<article class="near-ask"><span aria-hidden="true">📍</span><h3>${ht("Location is off", "Геолокация выключена")}</h3><p>${ht("Allow location for HAIQ in your phone settings, or look around central Yerevan.", "Разрешите геолокацию для HAIQ в настройках телефона или посмотрите центр Еревана.")}</p><button class="tour-btn near-btn" data-near-center>${ht("Show central Yerevan", "Показать центр Еревана")}</button><button class="text-link" data-near-locate>${ht("Try again", "Попробовать снова")}</button></article>`;
+  const kind = id === "near" ? "all" : id.slice(5);
+  const key = `${kind}:${haiq.lang}:${g.lat.toFixed(3)}:${g.lng.toFixed(3)}`;
+  const data = nearCache[key];
+  if (!data) {
+    loadNear(kind, key, g).then(() => haiq.explore === id && renderExploreScreen());
+    return `<p class="explore-loading">${ht("Ara is looking around…", "Ара осматривается…")}</p>`;
+  }
+  if (data.status === "outside")
+    return `<p class="explore-empty">${ht("You seem to be outside Armenia. Showing places works once you’re here — or look around central Yerevan.", "Похоже, вы не в Армении. Места рядом заработают, когда будете здесь, — или посмотрите центр Еревана.")}</p><button class="text-link" data-near-center>${ht("Show central Yerevan", "Показать центр Еревана")}</button>`;
+  if (data.status !== "ok")
+    return `<p class="explore-empty">${ht("Couldn’t load places right now. Try again in a minute.", "Не удалось загрузить места. Попробуйте через минуту.")}</p>`;
+  const icon = EXPLORE.find((c) => c[0] === id)[1];
+  let list = data.places
+    .filter((p) => p.lat != null && p.lng != null)
+    .map((p) => ({ ...p, km: distKm(g, p) }))
+    .sort((a, b) => a.km - b.km);
+  if (haiq.nearOpen) list = list.filter((p) => p.openNow === true);
+  const head = `<div class="near-head"><span>${g.center ? ht("Around central Yerevan", "Вокруг центра Еревана") : ht("Around you", "Вокруг вас")} · ${list.length} ${ht("places", "мест")}</span><button class="near-toggle ${haiq.nearOpen ? "on" : ""}" data-near-open aria-pressed="${!!haiq.nearOpen}"><i></i>${ht("Open now", "Открыто сейчас")}</button></div>`;
+  if (!list.length)
+    return (
+      head +
+      `<p class="explore-empty">${ht("Nothing open right here. Turn off “Open now” or try another tab.", "Рядом ничего не открыто. Выключите «Открыто сейчас» или выберите другую вкладку.")}</p>`
+    );
+  return (
+    head +
+    `<div class="explore-list">${list
+      .map((p) =>
+        explorePlaceTemplate(p, icon).replace(
+          '<div class="explore-copy">',
+          `<div class="explore-copy"><p class="near-dist"><b>${fmtDist(p.km)}</b> · 🚶 ${ht(`~${Math.max(1, Math.round((p.km / 4.5) * 60))} min`, `~${Math.max(1, Math.round((p.km / 4.5) * 60))} мин`)}</p>`,
+        ),
+      )
+      .join("")}</div>`
+  );
+}
+async function loadNear(kind, key, g) {
+  try {
+    const res = await fetch(
+      apiUrl(
+        `/api/public/nearby?kind=${kind}&lang=${haiq.lang}&lat=${g.lat.toFixed(4)}&lng=${g.lng.toFixed(4)}`,
+      ),
+      { signal: AbortSignal.timeout(15000) },
+    );
+    nearCache[key] = res.ok ? await res.json() : { status: "error" };
+  } catch {
+    nearCache[key] = { status: "error" };
+  }
+  if (nearCache[key].status !== "ok" && nearCache[key].status !== "outside")
+    setTimeout(() => delete nearCache[key], 60000);
+}
 const exploreCache = {};
 function moneyTipTemplate() {
   return `<article class="money-tip"><h3>${ht("Paying in Armenia", "Как платить в Армении")}</h3><ul><li>${ht("Visa / Mastercard issued in Russia do not work in Armenia.", "Российские Visa и Mastercard в Армении не работают.")}</li><li>${ht("Mir cards work only at VTB Bank Armenia ATMs and terminals.", "Карты «Мир» работают только в банкоматах и терминалах ВТБ Армения.")}</li><li>${ht("Carry some dram (AMD) in cash for markets, small cafés and the regions.", "Держите наличные драмы для рынков, небольших кафе и поездок по регионам.")}</li></ul><small>${ht("Rules change — check with your bank before the trip.", "Правила меняются — уточните в своём банке перед поездкой.")}</small></article>`;
@@ -3118,6 +3252,16 @@ function explorePlaceTemplate(p, icon = "📍") {
     : "";
   return `<article class="explore-place"><div class="explore-photo"><span aria-hidden="true">${icon}</span>${photo}</div><div class="explore-copy"><h3>${escapeHtml(p.name)}</h3><p class="explore-meta">${rating}${open}${hours ? `<span>${escapeHtml(hours)}</span>` : ""}</p>${p.address ? `<p class="explore-address">${escapeHtml(p.address)}</p>` : ""}<div class="explore-links">${p.mapsUrl ? `<a class="text-link" href="${escapeHtml(p.mapsUrl)}" target="_blank" rel="noreferrer">${ht("Directions", "Маршрут")} ↗</a>` : ""}${p.website ? `<a class="text-link" href="${escapeHtml(p.website)}" target="_blank" rel="noreferrer">${ht("Website", "Сайт")} ↗</a>` : ""}</div></div></article>`;
 }
+function exploreBody(id, key, meta) {
+  if (meta[4] === "near") return nearBodyTemplate(id);
+  if (id === "tours") return toursTemplate();
+  const intro = id === "money" ? moneyTipTemplate() : id === "carrental" ? carsTemplate() : "";
+  return (
+    intro +
+    (exploreCache[key] ||
+      `<p class="explore-loading">${ht("Ara is looking around…", "Ара осматривается…")}</p>`)
+  );
+}
 function renderExploreScreen() {
   const root = $("#exploreRoot");
   if (!root) return;
@@ -3133,11 +3277,11 @@ function renderExploreScreen() {
     )
     .join(
       "",
-    )}</div><div class="explore-body">${id === "money" ? moneyTipTemplate() : ""}${exploreCache[key] || `<p class="explore-loading">${ht("Ara is looking around…", "Ара осматривается…")}</p>`}</div><p class="mock-note">${ht("Places, ratings and hours from Google. Not paid placements.", "Места, рейтинги и часы — из Google. Не реклама.")}</p>`;
+    )}</div><div class="explore-body">${exploreBody(id, key, meta)}</div><p class="mock-note">${ht("Places, ratings and hours from Google. Not paid placements.", "Места, рейтинги и часы — из Google. Не реклама.")}</p>`;
   const chips = root.querySelector(".explore-chips");
   const activeChip = chips?.querySelector(".explore-chip.active");
   if (chips && activeChip) chips.scrollLeft = Math.max(0, activeChip.offsetLeft - 24);
-  if (!exploreCache[key])
+  if (meta[4] !== "near" && id !== "tours" && !exploreCache[key])
     loadExplore(id).then(() => (haiq.explore || "food") === id && renderExploreScreen());
   return meta;
 }
@@ -3174,19 +3318,6 @@ function showDealStory(id) {
   $("#dealStoryBody").innerHTML =
     `<img class="story-cover" src="${dealPhoto(c)}" alt="${c.partner}"><div class="story-shade"></div><div class="story-header"><div class="story-progress">${coupons.map((_, i) => `<span class="${i <= index ? "seen" : ""}"></span>`).join("")}</div><div class="story-partner-head"><img src="${dealPhoto(c)}" alt="" width="40" height="40"><span><strong>${c.partner}</strong><small>${ht("Local offer ·", "Местная скидка ·")} ${ht(c.distance, c.distance.replace("km", "км").replace("m", "м"))}</small></span></div></div><button class="story-prev" data-story-step="-1" data-story-index="${index}" aria-label="${ht("Previous deal", "Предыдущая скидка")}">‹</button><button class="story-next" data-story-step="1" data-story-index="${index}" aria-label="${ht("Next deal", "Следующая скидка")}">›</button><div class="story-copy"><span class="story-off">−${c.off}%</span><h2>${c.title[haiq.lang === "ru" ? 1 : 0]}</h2><p>${c.desc[haiq.lang === "ru" ? 1 : 0]}</p><small>${ht("Valid until", "До")} ${c.until}</small><button class="btn-primary" data-story-coupon="${id}">${ht("Get coupon", "Получить купон")} ↗</button><p class="story-disclaimer">${ht("Sample offer · not redeemable", "Пример предложения · не действует")}</p></div>`;
   if (!$("#dealStoryDialog").open) $("#dealStoryDialog").showModal();
-}
-function nearbyTemplate() {
-  const n = nearbyItems[haiq.nearby % nearbyItems.length],
-    i = haiq.nearby % nearbyItems.length;
-  const comments = [
-    [
-      "My favorite hidden courtyard. Stay for a coffee!",
-      "Мой любимый тайный дворик. Останьтесь на кофе!",
-    ],
-    ["A lovely place for an evening stroll.", "Отличное место для вечерней прогулки."],
-    ["Fresh lavash? Always a good idea.", "Свежий лаваш? Всегда хорошая идея."],
-  ];
-  return `<div class="nearby-ara"><img src="${araSrc()}" alt="Ara" width="56" height="56"><p>${comments[i][haiq.lang === "ru" ? 1 : 0]}</p></div><div class="nearby-stack"><div class="stack-under stack-under-back"></div><div class="stack-under"></div><article class="nearby-card" data-swipe-card><div class="nearby-photo"><img draggable="false" src="${photoFor(n.id)}" alt="${escapeHtml(n.title[haiq.lang === "ru" ? 1 : 0])}" width="1200" height="800"><span>${n.type[haiq.lang === "ru" ? 1 : 0]}</span><b class="nearby-distance">${ht(i === 0 ? "600 m" : i === 1 ? "800 m" : "350 m", i === 0 ? "600 м" : i === 1 ? "800 м" : "350 м")}</b></div><div class="nearby-copy"><span class="eyebrow">${ht("ARA’S PICK", "ВЫБОР АРЫ")} · ${i + 1}/${nearbyItems.length}</span><h3>${n.title[haiq.lang === "ru" ? 1 : 0]}</h3><p>${n.sub[haiq.lang === "ru" ? 1 : 0]}</p></div></article></div><div class="nearby-controls"><button class="skip-nearby" data-nearby-skip aria-label="${ht("Next place", "Следующее место")}" title="${ht("Next place", "Следующее место")}">×</button><span class="nearby-hint"><b>← ${ht("Skip", "Дальше")}</b><b>${ht("Add to plan", "В план")} →</b></span><button class="add-nearby" data-nearby-add aria-label="${ht("Add to today", "Добавить на сегодня")}" title="${ht("Add to today", "Добавить на сегодня")}">${inPlan(n.id) ? "✓" : "+"}</button></div>`;
 }
 const fmtAmd = (n) =>
   `${Math.round(n)
@@ -3626,65 +3757,6 @@ openEntityDetail = function (id) {
     }
   }
 };
-let swipeStart = null,
-  swipeBusy = false;
-function animateNearby(direction) {
-  if (swipeBusy) return;
-  const card = $("[data-swipe-card]");
-  if (!card) return;
-  swipeBusy = true;
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const animation = card.animate(
-    [
-      { transform: card.style.transform || "none", opacity: 1 },
-      { transform: `translateX(${direction * 500}px) rotate(${direction * 18}deg)`, opacity: 0 },
-    ],
-    { duration: reduced ? 0 : 260, easing: "ease-out", fill: "forwards" },
-  );
-  animation.finished.then(() => {
-    swipeBusy = false;
-    if (direction > 0) addNearby();
-    else skipNearby();
-  });
-}
-document.addEventListener("pointerdown", (e) => {
-  const card = e.target.closest("[data-swipe-card]");
-  if (card && !e.target.closest("button") && !swipeBusy) {
-    swipeStart = { x: e.clientX, y: e.clientY, id: e.pointerId, card };
-    card.setPointerCapture(e.pointerId);
-  }
-});
-document.addEventListener("pointermove", (e) => {
-  if (!swipeStart || e.pointerId !== swipeStart.id) return;
-  const dx = e.clientX - swipeStart.x,
-    dy = e.clientY - swipeStart.y;
-  if (Math.abs(dx) > Math.abs(dy))
-    swipeStart.card.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
-});
-document.addEventListener("pointerup", (e) => {
-  if (!swipeStart) return;
-  const dx = e.clientX - swipeStart.x,
-    dy = e.clientY - swipeStart.y,
-    card = swipeStart.card;
-  swipeStart = null;
-  if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy)) animateNearby(dx > 0 ? 1 : -1);
-  else card.style.transform = "";
-});
-document.addEventListener("pointercancel", () => {
-  if (swipeStart) swipeStart.card.style.transform = "";
-  swipeStart = null;
-});
-function skipNearby() {
-  haiq.nearby++;
-  $("#nearbyDeck").innerHTML = nearbyTemplate();
-}
-function addNearby() {
-  const n = nearbyItems[haiq.nearby % nearbyItems.length];
-  if (!inPlan(n.id)) addToDay(n.id, currentDayIndex());
-  else showToast(ht("Already in your plan", "Уже в вашем плане"));
-  haiq.nearby++;
-  renderAll();
-}
 document.addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
@@ -3740,13 +3812,15 @@ document.addEventListener("click", (e) => {
     window.scrollTo({ top: Math.min(y, Math.max(0, listTop)) });
     return;
   }
-  if (b.hasAttribute("data-nearby-open")) {
-    openScreen("homeScreen");
-    $("#nearbyDeck").scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
+  if (b.hasAttribute("data-near-locate")) return locateMe(true);
+  if (b.hasAttribute("data-near-center")) {
+    haiq.geo = { lat: 40.1811, lng: 44.5136, center: true };
+    return renderExploreScreen();
   }
-  if (b.hasAttribute("data-nearby-add")) return animateNearby(1);
-  if (b.hasAttribute("data-nearby-skip")) return animateNearby(-1);
+  if (b.hasAttribute("data-near-open")) {
+    haiq.nearOpen = !haiq.nearOpen;
+    return renderExploreScreen();
+  }
   if (b.hasAttribute("data-open-concierge")) {
     setTimeout(() => $("#chatInput").focus(), 50);
   }
