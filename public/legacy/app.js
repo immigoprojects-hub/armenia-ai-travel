@@ -3005,7 +3005,7 @@ const TOOL_ICONS = {
   sim: '<path d="M7 3h7l4 4v14H7V3Z"/><path d="M10 13h5v4h-5z"/>',
   taxi: '<path d="M5 16h14M6 16l1.5-6h9L18 16M7 16v3M17 16v3"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/>',
-  near: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
+  car: '<path d="M5 16v-4l2-5h10l2 5v4M4 16h16v3H4zM7.5 13h.01M16.5 13h.01"/>',
 };
 const toolIcon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${TOOL_ICONS[k]}</svg>`;
 function renderHaiqToday() {
@@ -3015,10 +3015,11 @@ function renderHaiqToday() {
     c = dealOfDay(),
     L = haiq.lang === "ru" ? 1 : 0;
   const tools = `<div class="t2-tools">
-<button data-explore-go="near"><span>${toolIcon("near")}</span>${ht("Near me", "Рядом")}<small>${ht("Open now", "Что открыто")}</small></button>
+
 <button data-explore-go="money"><span>${toolIcon("money")}</span>${ht("Exchange", "Обмен")}<small>${ht("ATMs", "Банкоматы")}</small></button>
 <button data-explore-go="sim"><span>${toolIcon("sim")}</span>SIM<small>${ht("Internet", "Интернет")}</small></button>
 <a href="https://go.yandex/" target="_blank" rel="noreferrer"><span>${toolIcon("taxi")}</span>${ht("Taxi", "Такси")}<small>Yandex Go</small></a>
+<button data-explore-go="carrental"><span>${toolIcon("car")}</span>${ht("Car hire", "Авто")}<small>${ht("Rent a car", "Прокат")}</small></button>
 <button data-first-day><span>${toolIcon("help")}</span>${ht("Help", "Помощь")}<small>${ht("First day", "Первый день")}</small></button></div>`;
   const deal = c
     ? `<section class="t2-section"><button class="t2-deal2" data-coupon="${c.id}"><span class="t2-deal2-img"><img src="${dealPhoto(c)}" alt="" width="128" height="128" loading="lazy"><b>−${c.off}%</b></span><span class="t2-deal2-copy"><small>${ht("DEAL OF THE DAY", "СКИДКА ДНЯ")}</small><strong>${escapeHtml(c.partner)}</strong><em>${escapeHtml(ht(c.distance, c.distance.replace("km", "км").replace("m", "м")))} · ${escapeHtml(c.title[L])}</em></span><span class="t2-deal2-price"><s>${fmtAmd(c.bill)}</s><b>${fmtAmd(c.bill - couponSave(c))}</b></span></button><p class="t2-deal-note">${ht("Sample partner offer · not redeemable yet · typical bill per person", "Пример предложения партнёра · пока не действует · средний чек на человека")}</p></section>`
@@ -3051,35 +3052,35 @@ const EXPLORE = [
   ["near-coffee", "☕", "Coffee", "Кофе", "near"],
   ["near-bars", "🍷", "Bars", "Бары", "near"],
   ["near-sights", "⭐", "Sights", "Интересное", "near"],
-  ["food", "🍽", "Food", "Еда", "eat"],
-  ["coffee", "☕", "Coffee", "Кофе", "eat"],
-  ["wine", "🍷", "Wine bars", "Винные бары", "eat"],
-  ["bars", "🍸", "Bars", "Бары", "eat"],
-  ["clubs", "🪩", "Clubs", "Клубы", "eat"],
-  ["hookah", "💨", "Hookah", "Кальян", "eat"],
-  ["karaoke", "🎤", "Karaoke", "Караоке", "eat"],
+  ["food", "🍽", "Food", "Еда", "city"],
+  ["coffee", "☕", "Coffee", "Кофе", "city"],
+  ["wine", "🍷", "Wine bars", "Винные бары", "city"],
+  ["bars", "🍸", "Bars", "Бары", "city"],
+  ["clubs", "🪩", "Clubs", "Клубы", "city"],
+  ["hookah", "💨", "Hookah", "Кальян", "city"],
+  ["karaoke", "🎤", "Karaoke", "Караоке", "city"],
   ["tours", "🧭", "Popular routes", "Популярные маршруты", "tours"],
-  ["free", "🆓", "Free to visit", "Бесплатно", "do"],
-  ["museums", "🏛", "Museums", "Музеи", "do"],
+  ["free", "🆓", "Free to visit", "Бесплатно", "city"],
+  ["museums", "🏛", "Museums", "Музеи", "city"],
   ["daytrips", "🚐", "Day trips", "Поездки на день", "tours"],
   ["winetours", "🍇", "Wineries", "Винодельни", "tours"],
   ["sky", "🚁", "Helicopter & paragliding", "Вертолёт и параплан", "tours"],
   ["hiking", "🥾", "Hiking", "Походы", "tours"],
-  ["quests", "🗝", "Quests", "Квесты", "do"],
-  ["spa", "💆", "Spa & massage", "Спа и массаж", "do"],
+  ["quests", "🗝", "Quests", "Квесты", "city"],
+  ["spa", "💆", "Spa & massage", "Спа и массаж", "city"],
   ["money", "💱", "Money & ATMs", "Деньги и банкоматы", "help"],
   ["sim", "📶", "SIM cards", "SIM-карты", "help"],
   ["pharmacy", "💊", "Pharmacy 24/7", "Аптеки 24/7", "help"],
-  ["carrental", "🚗", "Car rental", "Аренда авто", "help"],
+  ["carrental", "🚗", "Car rental", "Аренда авто", "tours"],
   ["souvenirs", "🛍", "Souvenirs & markets", "Сувениры и рынки", "help"],
 ];
+// Bottom tabs "Near me" and "Tours" share one renderer; each keeps its own selected chip.
 const EXPLORE_GROUPS = [
-  ["near", "Near me", "Рядом"],
-  ["eat", "Eat & night", "Еда и ночь"],
-  ["do", "Things to do", "Чем заняться"],
-  ["tours", "Tours", "Туры"],
+  ["near", "Near me", "Рядом со мной"],
+  ["city", "All Yerevan", "Весь Ереван"],
   ["help", "Useful", "Полезное"],
 ];
+const groupOf = (id) => EXPLORE.find((c) => c[0] === id)?.[4];
 /* ---------- Tours: popular routes, booked on partner sites (we never invent prices) ---------- */
 const GYG = "https://www.getyourguide.com/yerevan-l1406/";
 const TRIPSTER = "https://experience.tripster.ru/experience/Yerevan/";
@@ -3150,6 +3151,11 @@ function fmtDist(km) {
     ? `${Math.max(10, Math.round((km * 1000) / 10) * 10)} ${ht("m", "м")}`
     : `${km.toFixed(1)} ${ht("km", "км")}`;
 }
+// Once the traveller has allowed location, "Near me" finds them by itself on every visit.
+function autoLocate() {
+  if (groupOf(haiq.explore || "near") === "near" && !haiq.geo && readStored("haiq-geo-ok", false))
+    locateMe(true);
+}
 function locateMe(ask) {
   if (!navigator.geolocation) {
     haiq.geo = { error: "unsupported" };
@@ -3159,10 +3165,12 @@ function locateMe(ask) {
   if (ask) renderExploreScreen();
   navigator.geolocation.getCurrentPosition(
     (pos) => {
+      writeStored("haiq-geo-ok", true);
       haiq.geo = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       renderExploreScreen();
     },
     () => {
+      writeStored("haiq-geo-ok", false);
       haiq.geo = { error: "denied" };
       renderExploreScreen();
     },
@@ -3181,7 +3189,7 @@ function nearBodyTemplate(id) {
   const key = `${kind}:${haiq.lang}:${g.lat.toFixed(3)}:${g.lng.toFixed(3)}`;
   const data = nearCache[key];
   if (!data) {
-    loadNear(kind, key, g).then(() => haiq.explore === id && renderExploreScreen());
+    loadNear(kind, key, g).then(() => (haiq.explore || "near") === id && renderExploreScreen());
     return `<p class="explore-loading">${ht("Ara is looking around…", "Ара осматривается…")}</p>`;
   }
   if (data.status === "outside")
@@ -3263,12 +3271,21 @@ function exploreBody(id, key, meta) {
   );
 }
 function renderExploreScreen() {
-  const root = $("#exploreRoot");
+  renderExploreSection("#exploreRoot", haiq.explore || "near", true);
+  renderExploreSection("#toursRoot", haiq.tour || "tours", false);
+}
+function renderExploreSection(sel, id, withGroups) {
+  const root = $(sel);
   if (!root) return;
-  const id = haiq.explore || "food";
   const meta = EXPLORE.find((c) => c[0] === id);
   const key = `${id}:${haiq.lang}`;
-  root.innerHTML = `<header class="screen-head explore-head"><p class="eyebrow">HAIQ · ${ht("EXPLORE", "ОБЗОР")}</p><h1 class="display-sm">${ht("What’s good in Yerevan", "Что интересного в Ереване")}</h1></header><div class="explore-groups">${EXPLORE_GROUPS.map(([g, en, ru]) => `<button class="explore-group ${g === meta[4] ? "active" : ""}" data-explore-group="${g}">${ht(en, ru)}</button>`).join("")}</div><div class="explore-chips" role="tablist">${EXPLORE.filter(
+  const head = withGroups
+    ? `<p class="eyebrow">HAIQ · ${ht("NEAR ME", "РЯДОМ")}</p><h1 class="display-sm">${ht("What’s around", "Что рядом")}</h1>`
+    : `<p class="eyebrow">HAIQ · ${ht("TOURS", "ТУРЫ")}</p><h1 class="display-sm">${ht("Tours & day trips", "Туры и экскурсии")}</h1>`;
+  const groups = withGroups
+    ? `<div class="explore-groups">${EXPLORE_GROUPS.map(([g, en, ru]) => `<button class="explore-group ${g === meta[4] ? "active" : ""}" data-explore-group="${g}">${ht(en, ru)}</button>`).join("")}</div>`
+    : "";
+  root.innerHTML = `<header class="screen-head explore-head">${head}</header>${groups}<div class="explore-chips" role="tablist">${EXPLORE.filter(
     (c) => c[4] === meta[4],
   )
     .map(
@@ -3282,7 +3299,7 @@ function renderExploreScreen() {
   const activeChip = chips?.querySelector(".explore-chip.active");
   if (chips && activeChip) chips.scrollLeft = Math.max(0, activeChip.offsetLeft - 24);
   if (meta[4] !== "near" && id !== "tours" && !exploreCache[key])
-    loadExplore(id).then(() => (haiq.explore || "food") === id && renderExploreScreen());
+    loadExplore(id).then(() => [haiq.explore, haiq.tour].includes(id) && renderExploreScreen());
   return meta;
 }
 async function loadExplore(id) {
@@ -3513,6 +3530,8 @@ const ruWords = {
   Map: "Карта",
   Deals: "Скидки",
   Explore: "Обзор",
+  "Near me": "Рядом",
+  Tours: "Туры",
   Ara: "Ара",
   "Ask Ara": "Спросить Ару",
   "Your local friend": "Ваш местный друг",
@@ -3732,7 +3751,8 @@ renderAll = function () {
 const originalScreen = openScreen;
 openScreen = function (id) {
   originalScreen(id);
-  if (id === "exploreScreen") renderExploreScreen();
+  if (id === "exploreScreen" || id === "toursScreen") renderExploreScreen();
+  if (id === "exploreScreen") autoLocate();
   localizeHaiq();
 };
 const originalPlanner = renderPlanner;
@@ -3792,22 +3812,31 @@ document.addEventListener("click", (e) => {
   }
   if (b.hasAttribute("data-first-day")) return showFirstDay();
   if (b.dataset.exploreGo) {
-    haiq.explore = b.dataset.exploreGo;
-    openScreen("exploreScreen");
+    const go = b.dataset.exploreGo;
+    if (groupOf(go) === "tours") {
+      haiq.tour = go;
+      openScreen("toursScreen");
+    } else {
+      haiq.explore = go;
+      openScreen("exploreScreen");
+    }
     window.scrollTo({ top: 0 });
     return;
   }
   if (b.dataset.exploreGroup) {
     haiq.explore = EXPLORE.find((c) => c[4] === b.dataset.exploreGroup)[0];
     renderExploreScreen();
+    autoLocate();
     return;
   }
   if (b.dataset.exploreTab) {
-    haiq.explore = b.dataset.exploreTab;
+    const tab = b.dataset.exploreTab;
+    if (groupOf(tab) === "tours") haiq.tour = tab;
+    else haiq.explore = tab;
     const y = window.scrollY;
     renderExploreScreen();
-    const body = $(".explore-body");
-    const chipsH = $(".explore-chips")?.offsetHeight || 0;
+    const body = b.closest(".screen")?.querySelector(".explore-body");
+    const chipsH = b.closest(".screen")?.querySelector(".explore-chips")?.offsetHeight || 0;
     const listTop = body ? body.getBoundingClientRect().top + window.scrollY - chipsH - 8 : 0;
     window.scrollTo({ top: Math.min(y, Math.max(0, listTop)) });
     return;
