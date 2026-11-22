@@ -231,6 +231,29 @@ test("Explore keeps open businesses, removes duplicates and ranks by trusted rat
   assert.equal(places[0].photo, null);
 });
 
+test("Near me keeps Google's distance order and only answers inside Armenia", async () => {
+  const places = normalizePlaces(
+    [
+      { id: "near", displayName: { text: "Near" }, rating: 3, userRatingCount: 5 },
+      { id: "far", displayName: { text: "Far" }, rating: 4.9, userRatingCount: 900 },
+    ],
+    "test-key",
+    { byRating: false, limit: 20 },
+  );
+  assert.deepEqual(
+    places.map((p) => p.name),
+    ["Near", "Far"],
+  );
+  const nearbyCode = compile(
+    await readFile(new URL("../src/lib/nearby.server.ts", import.meta.url), "utf8"),
+  )
+    .replace("./api-guard.server", guard)
+    .replace("./explore.server", uri(exploreCode));
+  const { inArmenia } = await import(uri(nearbyCode));
+  assert.equal(inArmenia(40.18, 44.51), true);
+  assert.equal(inArmenia(41.39, 2.17), false);
+});
+
 const araCode = compile(
   await readFile(new URL("../src/lib/ara.server.ts", import.meta.url), "utf8"),
 )

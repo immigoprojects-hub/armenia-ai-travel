@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicAraChatRouteImport } from './routes/api/public/ara-chat'
 import { Route as ApiPublicExploreRouteImport } from './routes/api/public/explore'
+import { Route as ApiPublicNearbyRouteImport } from './routes/api/public/nearby'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicPlacesEnrichmentRouteImport } from './routes/api/public/places-enrichment'
 import { Route as ApiPublicRoadRouteRouteImport } from './routes/api/public/road-route'
@@ -29,6 +30,11 @@ const ApiPublicAraChatRoute = ApiPublicAraChatRouteImport.update({
 const ApiPublicExploreRoute = ApiPublicExploreRouteImport.update({
   id: '/api/public/explore',
   path: '/api/public/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicNearbyRoute = ApiPublicNearbyRouteImport.update({
+  id: '/api/public/nearby',
+  path: '/api/public/nearby',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/public/ara-chat': typeof ApiPublicAraChatRoute
   '/api/public/explore': typeof ApiPublicExploreRoute
+  '/api/public/nearby': typeof ApiPublicNearbyRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/public/ara-chat': typeof ApiPublicAraChatRoute
   '/api/public/explore': typeof ApiPublicExploreRoute
+  '/api/public/nearby': typeof ApiPublicNearbyRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/public/ara-chat': typeof ApiPublicAraChatRoute
   '/api/public/explore': typeof ApiPublicExploreRoute
+  '/api/public/nearby': typeof ApiPublicNearbyRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/places-enrichment': typeof ApiPublicPlacesEnrichmentRoute
   '/api/public/road-route': typeof ApiPublicRoadRouteRoute
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/public/ara-chat'
     | '/api/public/explore'
+    | '/api/public/nearby'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/public/ara-chat'
     | '/api/public/explore'
+    | '/api/public/nearby'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/public/ara-chat'
     | '/api/public/explore'
+    | '/api/public/nearby'
     | '/api/public/place-photo'
     | '/api/public/places-enrichment'
     | '/api/public/road-route'
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiPublicAraChatRoute: typeof ApiPublicAraChatRoute
   ApiPublicExploreRoute: typeof ApiPublicExploreRoute
+  ApiPublicNearbyRoute: typeof ApiPublicNearbyRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicPlacesEnrichmentRoute: typeof ApiPublicPlacesEnrichmentRoute
   ApiPublicRoadRouteRoute: typeof ApiPublicRoadRouteRoute
@@ -130,6 +143,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/explore'
       fullPath: '/api/public/explore'
       preLoaderRoute: typeof ApiPublicExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/nearby': {
+      id: '/api/public/nearby'
+      path: '/api/public/nearby'
+      fullPath: '/api/public/nearby'
+      preLoaderRoute: typeof ApiPublicNearbyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/place-photo': {
@@ -160,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiPublicAraChatRoute: ApiPublicAraChatRoute,
   ApiPublicExploreRoute: ApiPublicExploreRoute,
+  ApiPublicNearbyRoute: ApiPublicNearbyRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicPlacesEnrichmentRoute: ApiPublicPlacesEnrichmentRoute,
   ApiPublicRoadRouteRoute: ApiPublicRoadRouteRoute,

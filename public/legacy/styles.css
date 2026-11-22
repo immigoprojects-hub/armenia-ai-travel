@@ -4201,8 +4201,9 @@ main {
   min-height: 70vh;
 }
 .explore-groups {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
   gap: 4px;
   margin-top: 14px;
   padding: 4px;
@@ -4254,7 +4255,7 @@ main {
 }
 .t2-tools {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   margin: 18px -4px 0;
 }
@@ -4853,4 +4854,172 @@ body[data-screen="homeScreen"] main {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* ---------- Explore: 5 groups scroll sideways; Today tools in 5 columns ---------- */
+.explore-groups::-webkit-scrollbar {
+  display: none;
+}
+.explore-group {
+  flex: 1 0 auto;
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+.t2-tools span {
+  width: 52px;
+  height: 52px;
+}
+.t2-tools small {
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+/* ---------- Near me ---------- */
+.near-ask {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 26px 18px;
+  border-radius: 18px;
+  background: var(--paper);
+  border: 1px solid var(--line, #ede7de);
+}
+.near-ask > span {
+  font-size: 34px;
+}
+.near-ask h3 {
+  margin: 0;
+  font-size: 19px;
+}
+.near-ask p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.near-ask .near-btn {
+  width: 100%;
+}
+.near-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.near-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  font: 600 13px var(--font);
+  color: var(--muted);
+  padding: 6px 0;
+}
+.near-toggle i {
+  width: 30px;
+  height: 18px;
+  border-radius: 9px;
+  background: #d9d2c7;
+  position: relative;
+}
+.near-toggle i::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: #fff;
+  transition: left 0.15s;
+}
+.near-toggle.on {
+  color: #2f6b45;
+}
+.near-toggle.on i {
+  background: #2f6b45;
+}
+.near-toggle.on i::after {
+  left: 14px;
+}
+.near-dist {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.near-dist b {
+  color: var(--ink);
+}
+
+/* ---------- Tours & car rental ---------- */
+.tour-partners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.tour-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: var(--wine);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+.tour-list {
+  display: flex;
+  flex-direction: column;
+}
+.tour-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line, #ede7de);
+}
+.tour-row > img,
+.tour-ph {
+  width: 76px;
+  height: 76px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--ivory-2);
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+}
+.tour-row h3 {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.25;
+}
+.tour-row p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.tour-links {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 13.5px;
+}
+.near-btn {
+  width: 100%;
+  justify-content: center;
+  border: 0;
+  min-height: 48px;
+  font: 600 15px var(--font);
+  cursor: pointer;
 }

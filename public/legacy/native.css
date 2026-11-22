@@ -74,3 +74,11 @@ html.native-app body:not([data-screen="homeScreen"]) .haiq-header {
 html.native-app .screen-pad {
   padding-top: 20px;
 }
+
+/* iPhone: the page itself must never slide sideways. Inner rows (cards, chips) still scroll,
+   because each of them is its own scroll container. */
+html.native-app,
+html.native-app body {
+  overflow-x: hidden;
+  touch-action: pan-y;
+}
