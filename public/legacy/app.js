@@ -2692,9 +2692,13 @@ document.addEventListener("click", (event) => {
     if (isSaved(id)) state.saved = state.saved.filter((x) => x !== id);
     else state.saved.push(id);
     persistSaved();
+    if ($("#entityDialog").open) $("#entityDialog").close();
     renderAll();
-    openEntityDetail(id);
-    return showToast(isSaved(id) ? "Saved to My Trip" : "Removed from saved");
+    return showToast(
+      isSaved(id)
+        ? ht("Saved for later · My plan", "Сохранено на потом · Мой план")
+        : ht("Removed from saved", "Убрано из сохранённого"),
+    );
   }
   const unsave = q("[data-unsave]");
   if (unsave) {
@@ -3831,6 +3835,85 @@ function planHeroChips(n) {
   if (w) chips.push(w);
   return chips.map((c) => `<span>${escapeHtml(c)}</span>`).join("");
 }
+// Short Russian descriptions of our own places (same facts as the English text in entities.js).
+const RU_DESC = {
+  "cascade-complex":
+    "Огромная лестница под открытым небом, современное искусство и вид на город. Рядом кафе и центр Гафесчяна.",
+  "republic-square": "Главная площадь из розового туфа: музеи, фонтаны, вечерние прогулки.",
+  matenadaran: "Музей и институт древних рукописей — одно из главных мест Еревана.",
+  "garni-temple": "Знаменитый античный храм, обычно вместе с Гегардом и «Симфонией камней».",
+  "geghard-monastery": "Монастырь ЮНЕСКО, частично высеченный в скале, в живописном ущелье.",
+  "khor-virap": "Известный монастырь у турецкой границы с классическим видом на Арарат.",
+  noravank: "Монастырь в каньоне красных скал, часто вместе с винодельнями Арени и Хор Вирапом.",
+  "sevanavank-lake-sevan": "Высокогорное озеро, монастырь Севанаванк и рыбные рестораны рядом.",
+  "dilijan-national-park":
+    "Лесные тропы, монастыри, свежий воздух — один из лучших выездов на природу.",
+  "tatev-monastery":
+    "Большой монастырь на юге, туда ведёт горная дорога или канатная дорога «Крылья Татева».",
+  "lavash-restaurant": "Известный армянский ресторан: классические блюда и выпечка лаваша.",
+  "sherep-restaurant": "Армянский ресторан у площади Республики, открытая кухня, понятное меню.",
+  dolmama: "Давно работающий ресторан изысканной армянской кухни, фирменная долма.",
+  "tavern-yerevan": "Сеть традиционных армянских ресторанов в центре, большое местное меню.",
+  "in-vino": "Небольшой винный бар на улице Сарьяна: армянские и зарубежные вина.",
+  "mirzoyan-library": "Кафе, фотобиблиотека и дворик с творческой атмосферой.",
+  "gouroo-club-garden": "Популярное кафе-ресторан: бранчи, сад, международная кухня.",
+  "crumbs-bread-factory": "Пекарня-кафе: завтраки, хлеб, выпечка, кофе.",
+};
+const entityDesc = (e) => (haiq.lang === "ru" ? RU_DESC[e.id] : null) || e.shortDescription || "";
+function planDateLabel(i, long) {
+  if (!tripStart()) return ht(`Day ${i + 1}`, `День ${i + 1}`);
+  const d = new Date(tripStart());
+  d.setUTCDate(d.getUTCDate() + i);
+  return d.toLocaleDateString(
+    haiq.lang === "ru" ? "ru-RU" : "en-GB",
+    long
+      ? { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }
+      : { weekday: "short", day: "numeric", timeZone: "UTC" },
+  );
+}
+function drawPlanMap(tp) {
+  const el = $("#planMap");
+  if (!el) return;
+  loadLeaflet()
+    .then(() => {
+      if (!document.body.contains(el)) return;
+      haiq.planMap?.remove();
+      const pts = tp.stops.map((s) => coords(s.entity)).filter(Boolean);
+      const map = L.map(el, {
+        zoomControl: false,
+        attributionControl: true,
+        dragging: true,
+        scrollWheelZoom: false,
+      });
+      haiq.planMap = map;
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap",
+      }).addTo(map);
+      if (!pts.length) return map.setView([BASE.lat, BASE.lng], 12);
+      L.polyline(
+        pts.map((p) => [p.lat, p.lng]),
+        { color: "#6e1b2d", weight: 3, dashArray: "2 8", lineCap: "round" },
+      ).addTo(map);
+      pts.forEach((p, k) =>
+        L.marker([p.lat, p.lng], {
+          icon: L.divIcon({
+            html: `<b>${k + 1}</b>`,
+            className: "plan-pin",
+            iconSize: [30, 36],
+            iconAnchor: [15, 34],
+          }),
+        }).addTo(map),
+      );
+      map.fitBounds(
+        pts.map((p) => [p.lat, p.lng]),
+        { padding: [40, 40], maxZoom: 15 },
+      );
+    })
+    .catch(() => {
+      el.innerHTML = `<p class="plan-map-off">${ht("Map is unavailable offline", "Карта недоступна без интернета")}</p>`;
+    });
+}
 function renderHaiqPlan() {
   const root = $("#tripRoot");
   if (!root) return;
@@ -3842,12 +3925,23 @@ function renderHaiqPlan() {
   const i = Math.min(haiq.planDay ?? currentDayIndex(), n - 1);
   const day = state.plan[i];
   const tp = dayPlan(day);
-  const issues = tripIssues();
   const sugg = routeSuggestions(i);
-  const tip = sugg.find((s) => s.kind === "add");
+  const tip = sugg.find((x) => x.kind === "add");
+  const allIssues = tripIssues();
+  const dayIssues = allIssues.map((it, k) => ({ ...it, k })).filter((it) => it.day === i);
+  const walkKm = tp.stops.reduce(
+    (sum, st, k) => (k ? sum + haversine(coords(tp.stops[k - 1].entity), coords(st.entity)) : sum),
+    0,
+  );
   const region = state.planner.region || "daytrips";
-  const heroId = region === "yerevan" ? "cascade-complex" : "khor-virap";
-  const needsCar = day.driveLevel !== "none";
+  const title = region === "yerevan" ? ht("Yerevan", "Ереван") : ht("Armenia", "Армения");
+  const range = tripStart()
+    ? `${planDateLabel(0)} – ${planDateLabel(n - 1, true)}`
+    : ht(`${n} days`, `${n} дн.`);
+  const issueRow = (it) => {
+    const icon = /stay|hotel|жиль/i.test(it.text) ? "🏨" : /driv|дорог/i.test(it.text) ? "⏱" : "🚗";
+    return `<button class="wl-row" data-issue="${it.k}"><span class="wl-row-ico">${icon}</span><b>${escapeHtml(it.text)}</b><em>${escapeHtml(it.cta)}</em></button>`;
+  };
   const stops = tp.stops
     .map((st, k) => {
       const e = st.entity;
@@ -3861,62 +3955,47 @@ function renderHaiqPlan() {
         const walk = km < 2;
         const mins = walk ? Math.max(3, Math.round((km / 4.5) * 60)) : nxt.leg;
         const url = `https://www.google.com/maps/dir/?api=1&origin=${a.lat},${a.lng}&destination=${b.lat},${b.lng}&travelmode=${walk ? "walking" : "driving"}`;
-        move = `<p class="lux-move"><i></i>${walk ? "🚶" : "🚗"} ${walk ? ht(`${mins} min walk`, `${mins} мин пешком`) : ht(`${mins} min by car`, `${mins} мин на машине`)} · <a href="${url}" target="_blank" rel="noreferrer">${ht("Directions", "Маршрут")}</a></p>`;
+        move = `<p class="wl-move">${walk ? "🚶" : "🚗"} ${fmtDurL(mins)} · ${km.toFixed(1).replace(".", haiq.lang === "ru" ? "," : ".")} ${ht("km", "км")} · <a href="${url}" target="_blank" rel="noreferrer">${ht("Directions", "Маршрут")}</a></p>`;
       }
-      const cat = CAT_LABEL[e.category] || ["Place", "Место"];
-      return `<li class="lux-stop"><div class="lux-time"><b>${fmtTime(st.arrive)}</b><small>${fmtDurL(st.duration)}</small></div><div class="lux-stop-main"><button class="lux-card detail-button" data-id="${e.id}"><span class="lux-photo">${img(e, "", "hero")}<em>${k + 1}</em>${c ? `<strong class="lux-deal">−${c.off}% HAIQ</strong>` : ""}</span><span class="lux-card-copy"><b>${escapeHtml(shortName(e))}</b><small>${ht(cat[0], cat[1])}</small></span></button>${move}</div></li>`;
+      return `<li class="wl-stop"><button class="wl-place detail-button" data-id="${e.id}"><span class="wl-copy"><span class="wl-name"><i>${k + 1}</i>${escapeHtml(shortName(e))}</span><span class="wl-desc">${escapeHtml(entityDesc(e))}</span><span class="wl-chips"><em>${fmtTime(st.arrive)} · ${fmtDurL(st.duration)}</em>${c ? `<em class="wl-deal">−${c.off}% HAIQ</em>` : ""}</span></span>${img(e, "wl-img")}</button>${move}</li>`;
     })
     .join("");
-  const decisions = haiq.issuesOpen
-    ? `<div class="lux-issues"><h3>${ht("To decide", "Нужно решить")}</h3>${issues.map((it, k) => `<div class="issue"><span class="issue-text">${escapeHtml(it.text)}</span><button class="text-link" data-issue="${k}">${it.cta}</button></div>`).join("") || `<p class="muted">${ht("Nothing to decide right now.", "Сейчас решать нечего.")}</p>`}</div>`
-    : "";
-  const bookings = [
-    ...new Map(
-      state.plan.flatMap((d) => dayPlan(d).services.map((e) => [e.id, { e, d }])),
-    ).values(),
-  ];
   const saved = state.saved.map(getEntityById).filter(Boolean);
-  const heroEntity = getEntityById(heroId);
   root.innerHTML = `
-    <header class="lux-hero">
-      ${heroEntity ? img(heroEntity, "lux-hero-img", "hero") : ""}
-      <div class="lux-hero-top">${state.userBuilt ? "" : `<span class="lux-glass">${ht("Sample plan", "Пример плана")}</span>`}<button class="lux-glass" data-wiz-start>${state.userBuilt ? ht("Edit", "Изменить") : ht("Build mine", "Собрать свой")}</button></div>
-      <div class="lux-hero-copy">
-        <p class="lux-eyebrow">${ht("Your journey", "Ваше путешествие")}</p>
-        <h1>${region === "yerevan" ? ht("Yerevan", "Ереван") : ht("Armenia", "Армения")}</h1>
-        <div class="lux-chips">${planHeroChips(n)}</div>
-      </div>
-    </header>
-    <div class="lux-sheet">
-      <div class="lux-days" role="tablist">${state.plan
-        .map(
-          (_, k) =>
-            `<button class="${k === i ? "active" : ""}" role="tab" aria-selected="${k === i}" data-plan-day="${k}"><small>${dayLabel(k)}</small><b>${dayNumber(k)}</b></button>`,
-        )
-        .join("")}</div>
-      <h2 class="lux-day-title">${escapeHtml(ruDayTitle(day.title))}</h2>
-      <p class="lux-day-meta">${ht(`Day ${i + 1}`, `День ${i + 1}`)} · ${tp.stops.length} ${ht(tp.stops.length === 1 ? "place" : "places", tp.stops.length === 1 ? "место" : tp.stops.length < 5 && tp.stops.length > 1 ? "места" : "мест")} · ${needsCar ? ht("car or tour", "машина или тур") : ht("on foot & taxi", "пешком и такси")}</p>
-      ${tip ? `<div class="lux-ara"><img src="${araSrc()}" alt="" width="42" height="42"><div><small>${ht("Ara’s tip", "Совет Ары")}</small><p>${escapeHtml(shortName(getEntityById(tip.id)))} — ${ht("on your way", "по пути")}, ${tip.badge.replace("~", "").replace("min", ht("min", "мин"))}</p></div><button data-suggest="${sugg.indexOf(tip)}" data-suggest-day="${i}">${ht("Add", "Добавить")}</button></div>` : ""}
-      <ol class="lux-stops">${stops || `<li class="muted">${ht("No places this day yet.", "На этот день пока нет мест.")}</li>`}</ol>
-      <button class="lux-add" data-explore-go="near">+ ${ht("Add a place", "Добавить место")}</button>
-      ${decisions}
-      <details class="lux-more"><summary>${ht("Bookings & saved places", "Бронирования и сохранённое")} <span>${bookings.length + saved.length}</span></summary>
-        <div class="booking-list">${bookings
-          .map(
-            ({ e, d }) =>
-              `<div class="booking"><button class="booking-main detail-button" data-id="${e.id}"><strong>${escapeHtml(e.name)}</strong></button><button class="status-toggle" data-toggle-booked="${e.id}" aria-label="Toggle booked">${statusChip(bookingStatus(e, d))}</button></div>`,
-          )
-          .join("")}</div>
-        ${saved.length ? `<div class="saved-row">${saved.map((e) => `<div class="saved-item"><button class="detail-button" data-id="${e.id}">${img(e)}<span>${escapeHtml(e.name)}</span></button><button class="saved-remove" data-unsave="${e.id}" aria-label="Remove">${ICON.close}</button></div>`).join("")}</div>` : ""}
-      </details>
+    <div class="wl-map-wrap">
+      <div id="planMap" class="wl-map"></div>
+      <div class="wl-map-top"><button class="wl-pill" data-wiz-start>${title} · ${escapeHtml(range)}</button><button class="wl-round" data-wiz-start aria-label="${ht("Edit trip", "Изменить поездку")}">⋯</button></div>
+    </div>
+    <div class="wl-sheet">
+      <span class="wl-handle"></span>
+      ${state.userBuilt ? "" : `<button class="wl-sample" data-wiz-start>✨ ${ht("This is a sample plan — build your own", "Это пример плана — соберите свой")} →</button>`}
+      <div class="wl-days">${state.plan.map((_, k) => `<button class="${k === i ? "on" : ""}" data-plan-day="${k}">${escapeHtml(planDateLabel(k))}</button>`).join("")}</div>
+      <div class="wl-head"><h1>${escapeHtml(planDateLabel(i, true))}</h1><span>${tripStart() ? `${ht(`Day ${i + 1}`, `День ${i + 1}`)} · ` : ""}${escapeHtml(ruDayTitle(day.title))}</span></div>
+      <p class="wl-sub">${tp.stops.length} ${ht(tp.stops.length === 1 ? "place" : "places", tp.stops.length === 1 ? "место" : tp.stops.length < 5 && tp.stops.length > 1 ? "места" : "мест")}${day.driveLevel === "none" ? ` · ${walkKm.toFixed(1).replace(".", haiq.lang === "ru" ? "," : ".")} ${ht("km on foot", "км пешком")}` : ` · ${ht("by car or tour", "на машине или в туре")}`}</p>
+      ${dayIssues.length ? `<div class="wl-rows">${dayIssues.map(issueRow).join("")}</div>` : ""}
+      ${tip ? `<div class="wl-ara"><img src="${araSrc()}" alt="" width="34" height="34"><p><b>${ht("Ara", "Ара")}:</b> ${escapeHtml(shortName(getEntityById(tip.id)))} ${ht("is on your way", "по пути")} (${tip.badge.replace("~", "").replace("min", ht("min", "мин"))})</p><button data-suggest="${sugg.indexOf(tip)}" data-suggest-day="${i}">＋</button></div>` : ""}
+      <ol class="wl-stops">${stops || `<li class="muted">${ht("No places this day yet.", "На этот день пока нет мест.")}</li>`}</ol>
+      <button class="wl-add" data-explore-go="near">📍 ${ht("Add a place", "Добавить место")}</button>
+      ${saved.length ? `<h3 class="wl-h3">${ht("Saved for later", "Сохранено на потом")}</h3><div class="saved-row">${saved.map((e) => `<div class="saved-item"><button class="detail-button" data-id="${e.id}">${img(e)}<span>${escapeHtml(shortName(e))}</span></button><button class="saved-remove" data-unsave="${e.id}" aria-label="Remove">${ICON.close}</button></div>`).join("")}</div>` : ""}
       <div class="trip-foot"><button class="text-link muted" data-wiz-start>${ht("Start a new trip", "Начать новую поездку")}</button></div>
     </div>
-    <div class="lux-bar">
-      <button class="${haiq.issuesOpen ? "" : "on"}" data-plan-tab="plan">${ht("Plan", "План")}</button>
-      <button data-map-day="${i}">${ht("Map", "Карта")}</button>
-      <button class="${haiq.issuesOpen ? "on" : ""}" data-plan-issues>${ht("Decide", "Решить")} <em>${issues.length}</em></button>
-    </div>`;
+    <div class="wl-fabs"><button class="wl-fab dark" data-map-day="${i}" aria-label="${ht("Full map", "Большая карта")}">🗺</button><button class="wl-fab" data-explore-go="near" aria-label="${ht("Add a place", "Добавить место")}">＋</button></div>`;
   if (haiq.wallet.length) root.insertAdjacentHTML("beforeend", walletTemplate());
+  drawPlanMap(tp);
+}
+// Place card: "+ Add to plan" opens a day picker (like Wanderlog), instead of a silent "Save".
+function planPickSheet(id) {
+  const e = getEntityById(id);
+  if (!e || !state.plan.length) return "";
+  const colors = ["#6E1B2D", "#B45309", "#1F4E79", "#3F7A55", "#7C5CBF", "#0E7490", "#9D174D"];
+  return `<div class="pick-sheet" role="dialog" aria-label="${ht("Add to plan", "Добавить в план")}"><div class="pick-card"><div class="pick-head"><button class="text-link" data-pick-close>${ht("Cancel", "Отмена")}</button><b>${ht("Add", "Добавить")} «${escapeHtml((haiq.lang === "ru" && ruWords[shortName(e)]) || shortName(e))}»</b><span></span></div><p class="pick-label">${ht("Which day", "В какой день")}</p>${state.plan
+    .map((d, k) => {
+      const has = d.stops.includes(id);
+      return `<button class="pick-day" ${has ? "disabled" : `data-pick-day="${k}" data-pick-id="${id}"`}><i style="background:${colors[k % colors.length]}"></i><span><b>${escapeHtml(planDateLabel(k, true))}</b><small>${ht(`Day ${k + 1}`, `День ${k + 1}`)} · ${escapeHtml(ruDayTitle(d.title))}</small></span>${has ? `<em>✓ ${ht("already there", "уже в этом дне")}</em>` : ""}</button>`;
+    })
+    .join(
+      "",
+    )}<p class="pick-label">${ht("Or", "Или")}</p><button class="pick-day" data-save="${id}"><i class="pick-save">🔖</i><span><b class="no-cap">${isSaved(id) ? ht("Remove from saved", "Убрать из сохранённого") : ht("Save for later", "Сохранить на потом")}</b></span></button></div></div>`;
 }
 renderMyTrip = renderHaiqPlan;
 
@@ -4140,13 +4219,49 @@ renderMap = function (fit = false) {
 const originalDetail = openEntityDetail;
 openEntityDetail = function (id) {
   originalDetail(id);
+  const ent = getEntityById(id);
+  const actions = $("#entityDetail .detail-actions");
+  if (
+    ent &&
+    actions &&
+    state.plan.length &&
+    ["attractions", "restaurants-cafes"].includes(ent.category)
+  ) {
+    actions.querySelector("[data-add-to-day]")?.remove();
+    const inPlanDay = state.plan.findIndex((d) => d.stops.includes(id));
+    actions.insertAdjacentHTML(
+      "afterbegin",
+      inPlanDay >= 0
+        ? `<button class="btn-primary plan-add-btn" data-pick-open="${id}">✓ ${ht(`In plan · Day ${inPlanDay + 1}`, `В плане · день ${inPlanDay + 1}`)}</button>`
+        : `<button class="btn-primary plan-add-btn" data-pick-open="${id}">＋ ${ht("Add to plan", "В план")}</button>`,
+    );
+    actions.querySelector("[data-save]")?.remove();
+  }
   if (haiq.lang === "ru") {
     const walker = document.createTreeWalker($("#entityDetail"), NodeFilter.SHOW_TEXT);
     let n;
     while ((n = walker.nextNode())) {
       const k = n.textContent.trim();
       if (ruWords[k]) n.textContent = n.textContent.replace(k, ruWords[k]);
+      else {
+        const t = k
+          .replace(/^Day (\d+) · stop (\d+) of (\d+)$/, "День $1 · место $2 из $3")
+          .replace(/^Arrive (\S+) · (.+) here$/, "Прибытие $1 · $2 на месте")
+          .replace(/^(\d+) min from (.+)$/, (m, a, b) => `${a} мин от ${ruWords[b] || b}`)
+          .replace(/^Attraction · (.+)$/i, "Место · $1")
+          .replace(/^Restaurant · (.+)$/i, "Ресторан · $1")
+          .replace(/^Free$/, "Бесплатно")
+          .replace(/^(\d+)h$/, "$1 ч")
+          .replace(/^(\d+)h (\d+)m$/, "$1 ч $2 мин")
+          .replace(/^(\d+) min$/, "$1 мин")
+          .replace(/\b(\d+)h (\d+)m\b/g, "$1 ч $2 мин")
+          .replace(/\b(\d+)h\b/g, "$1 ч")
+          .replace(/Yerevan/g, "Ереван");
+        if (t !== k) n.textContent = n.textContent.replace(k, t);
+      }
     }
+    const why = $("#entityDetail .detail-why");
+    if (why && RU_DESC[id]) why.textContent = RU_DESC[id];
   }
 };
 document.addEventListener("click", (e) => {
@@ -4159,6 +4274,32 @@ document.addEventListener("click", (e) => {
     $("#chatLog").innerHTML = "";
     addMessage("assistant", araReply(""));
     return;
+  }
+  // Place card → day picker
+  if (b.dataset.pickOpen) {
+    $("#entityDialog .pick-sheet")?.remove();
+    $("#entityDialog").insertAdjacentHTML("beforeend", planPickSheet(b.dataset.pickOpen));
+    return localizeHaiq();
+  }
+  if (b.hasAttribute("data-pick-close")) return $("#entityDialog .pick-sheet")?.remove();
+  if (b.dataset.pickDay) {
+    const k = Number(b.dataset.pickDay);
+    const id = b.dataset.pickId;
+    const ent = getEntityById(id);
+    const day = state.plan[k];
+    if (!ent || !day) return;
+    const pos = coords(ent) ? insertionFor(ent, day).pos : dayPlan(day).stops.length;
+    day.stops = previewIds(day, { kind: "add", id, pos });
+    day.estimatedCost = estimateDailyCost(day, currentInputs());
+    state.saved = state.saved.filter((x) => x !== id);
+    persistSaved();
+    persistTrip();
+    $("#entityDialog").close();
+    haiq.planDay = k;
+    renderAll();
+    openScreen("tripScreen");
+    window.scrollTo({ top: 0 });
+    return showToast(ht(`Added to Day ${k + 1}`, `Добавлено в день ${k + 1}`));
   }
   // My plan + Build a trip
   if (b.dataset.planDay) {
