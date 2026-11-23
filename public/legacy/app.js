@@ -1247,7 +1247,14 @@ function buildPlan(shouldSave = true) {
   const inputs = getPlannerInputs();
   state.lastInputs = inputs;
   const usedIds = new Set();
-  const clusters = orderedClusters(inputs);
+  const region = state.planner.region || "daytrips";
+  const clusters = orderedClusters(inputs).filter((c) =>
+    region === "yerevan"
+      ? c.driveLevel === "none"
+      : region === "daytrips"
+        ? c.driveLevel !== "long"
+        : true,
+  );
   const selectedClusters = [];
   // Longer trips than there are distinct routes get open days instead of a repeated day.
   while (selectedClusters.length < inputs.days)
@@ -1287,6 +1294,12 @@ function buildPlan(shouldSave = true) {
     day.estimatedCost = estimateDailyCost(day, inputs);
     return day;
   });
+  if (state.planner.fill === false) {
+    const keep = new Set(state.planner.anchors);
+    state.plan.forEach((day) => {
+      day.stops = day.stops.filter((id) => keep.has(id) || !isGeo(getEntityById(id)));
+    });
+  }
   if (shouldSave) saveGeneratedTrip();
   else persistTrip();
 }
@@ -2795,8 +2808,11 @@ document.addEventListener("click", (event) => {
       buildPlan(true);
       state.plannerView = "result";
       state.expandedDays = new Set([0]);
+      haiq.planDay = 0;
+      haiq.wiz = 0;
       renderAll();
-      showToast("Your Armenia trip is ready");
+      openScreen("tripScreen");
+      showToast(ht("Your Armenia trip is ready", "Ваша поездка готова"));
     }, 900);
     return;
   }
@@ -2960,7 +2976,7 @@ const WEATHER_CODES = [
 async function loadWeather() {
   try {
     const res = await fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=40.1792&longitude=44.4991&current=temperature_2m,weather_code&timezone=Asia%2FYerevan",
+      "https://api.open-meteo.com/v1/forecast?latitude=40.1792&longitude=44.4991&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max&forecast_days=16&timezone=Asia%2FYerevan",
       { signal: AbortSignal.timeout(8000) },
     );
     if (!res.ok) return;
@@ -2968,6 +2984,15 @@ async function loadWeather() {
     const c = data && data.current;
     if (!c || typeof c.temperature_2m !== "number") return;
     haiq.weather = { temp: c.temperature_2m, code: c.weather_code };
+    const dl = data.daily;
+    if (dl && Array.isArray(dl.time)) {
+      haiq.daily = {};
+      dl.time.forEach((t, k) => {
+        if (typeof dl.temperature_2m_max?.[k] === "number")
+          haiq.daily[t] = { temp: dl.temperature_2m_max[k], code: dl.weather_code?.[k] };
+      });
+      if ($("#tripScreen")?.classList.contains("active")) renderMyTrip();
+    }
     if ($("#t2Weather")) $("#t2Weather").textContent = weatherShort();
   } catch {
     /* keep the neutral greeting */
@@ -3732,15 +3757,301 @@ function localizeHaiq() {
     "ИИ-гид · цены и часы работы лучше уточнять",
   );
 }
-const originalTripRender = renderMyTrip;
-renderMyTrip = function () {
-  originalTripRender();
-  $("#tripRoot").insertAdjacentHTML(
-    "afterbegin",
-    `<div class="trip-switch"><button data-screen-target="mapScreen" data-map-whole>${ICON.pin}${ht("Map", "Карта")}</button><button data-screen-target="plannerScreen">${ICON.spark || ""}${ht("Edit plan", "Изменить план")}</button></div>`,
-  );
-  if (haiq.wallet.length) $("#tripRoot").insertAdjacentHTML("beforeend", walletTemplate());
+/* ---------- My plan (redesign): day schema on top, one day at a time, Ara's tip, decisions ---------- */
+const ruDayTitle = (title) => {
+  const t = cleanTitle(title);
+  return haiq.lang === "ru" ? ruWords[t] || t : t;
 };
+const CAT_LABEL = {
+  attractions: ["Sight", "Место"],
+  "restaurants-cafes": ["Food", "Еда"],
+  hotels: ["Stay", "Жильё"],
+  tours: ["Tour", "Тур"],
+};
+// Forecast for a trip day: only when that date is inside Open-Meteo's 16-day forecast.
+function dayWeather(i) {
+  if (!tripStart() || !haiq.daily) return "";
+  const date = new Date(tripStart());
+  date.setUTCDate(date.getUTCDate() + i);
+  const w = haiq.daily[date.toISOString().slice(0, 10)];
+  if (!w) return "";
+  const icon = (WEATHER_CODES.find(([codes]) => codes.includes(w.code)) || [0, "🌡"])[1];
+  return `${icon} ${Math.round(w.temp)}°`;
+}
+const fmtDurL = (m) =>
+  haiq.lang === "ru"
+    ? fmtDur(m)
+        .replace(/(\d+) min/, "$1 мин")
+        .replace(/(\d+)h/, "$1 ч")
+        .replace(/(\d+)m$/, "$1 мин")
+    : fmtDur(m);
+function dayLabel(i) {
+  if (tripPhase() === "live" && i === currentDayIndex()) return ht("Today", "Сегодня");
+  if (!tripStart()) return ht("Day", "День");
+  const start = tripStart();
+  const date = new Date(start);
+  date.setUTCDate(date.getUTCDate() + i);
+  return date.toLocaleDateString(haiq.lang === "ru" ? "ru-RU" : "en-GB", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+}
+function dayNumber(i) {
+  if (!tripStart()) return i + 1;
+  const date = new Date(tripStart());
+  date.setUTCDate(date.getUTCDate() + i);
+  return date.getUTCDate();
+}
+function couponForEntity(id) {
+  return coupons.find((c) => c.entity === id && c.category !== "experiences");
+}
+// A real-proportion sketch of the day: points placed by their coordinates, no fake streets.
+function daySchemaSvg(tp, dayIndex) {
+  const pts = tp.stops.map((s) => coords(s.entity)).filter(Boolean);
+  if (!pts.length) return "";
+  const lats = pts.map((p) => p.lat),
+    lngs = pts.map((p) => p.lng);
+  const pad = Math.max(0.004, (Math.max(...lats) - Math.min(...lats)) * 0.15);
+  const minLat = Math.min(...lats) - pad,
+    maxLat = Math.max(...lats) + pad,
+    minLng = Math.min(...lngs) - pad,
+    maxLng = Math.max(...lngs) + pad;
+  const W = 360,
+    H = 170,
+    m = 28;
+  const sx = (W - 2 * m) / Math.max(maxLng - minLng, 1e-6),
+    sy = (H - 2 * m) / Math.max(maxLat - minLat, 1e-6),
+    k = Math.min(sx, sy);
+  const ox = (W - (maxLng - minLng) * k) / 2,
+    oy = (H - (maxLat - minLat) * k) / 2;
+  const xy = pts.map((p) => [ox + (p.lng - minLng) * k, H - (oy + (p.lat - minLat) * k)]);
+  const path = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  return `<button class="plan-schema" data-map-day="${dayIndex}" aria-label="${ht("Open the day on the map", "Открыть день на карте")}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path d="${path}" class="plan-schema-route"/>${xy
+    .map(
+      ([x, y], i) =>
+        `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13"/><text x="${x.toFixed(1)}" y="${(y + 4.5).toFixed(1)}">${i + 1}</text></g>`,
+    )
+    .join(
+      "",
+    )}</svg><span class="plan-schema-tag">🗺 ${ht("Day sketch · open map", "Схема дня · открыть карту")}</span></button>`;
+}
+function renderHaiqPlan() {
+  const root = $("#tripRoot");
+  if (!root) return;
+  if (!state.plan.length) {
+    root.innerHTML = `<div class="plan-empty"><h1 class="display-sm">${ht("No trip yet", "Поездки пока нет")}</h1><p>${ht("Pick dates and places — Ara will lay them out by day.", "Выберите даты и места — Ара разложит их по дням.")}</p><button class="tour-btn near-btn" data-wiz-start>${ht("Build my trip", "Собрать поездку")}</button></div>`;
+    return;
+  }
+  const n = state.plan.length;
+  const i = Math.min(haiq.planDay ?? currentDayIndex(), n - 1);
+  const day = state.plan[i];
+  const tp = dayPlan(day);
+  const issues = tripIssues();
+  const tip = routeSuggestions(i).find((s) => s.kind === "add");
+  const tipIndex = tip ? routeSuggestions(i).indexOf(tip) : -1;
+  const region = state.planner.region || "daytrips";
+  const tripTitle =
+    region === "yerevan"
+      ? ht(`Yerevan in ${n} days`, `Ереван за ${n} ${n === 1 ? "день" : n < 5 ? "дня" : "дней"}`)
+      : ht(`Armenia in ${n} days`, `Армения за ${n} ${n === 1 ? "день" : n < 5 ? "дня" : "дней"}`);
+  const range = tripStart()
+    ? `${dayNumber(0)}–${dayNumber(n - 1)} ${new Date(tripStart()).toLocaleDateString(haiq.lang === "ru" ? "ru-RU" : "en-GB", { month: "short", timeZone: "UTC" })}`
+    : ht("dates flexible", "даты гибкие");
+  const needsCar = day.driveLevel !== "none";
+  const stops = tp.stops
+    .map((st, k) => {
+      const e = st.entity;
+      const nxt = tp.stops[k + 1];
+      const c = couponForEntity(e.id);
+      let move = "";
+      if (nxt) {
+        const a = coords(e),
+          b = coords(nxt.entity);
+        const km = haversine(a, b);
+        const walk = km < 2;
+        const mins = walk ? Math.max(3, Math.round((km / 4.5) * 60)) : nxt.leg;
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${a.lat},${a.lng}&destination=${b.lat},${b.lng}&travelmode=${walk ? "walking" : "driving"}`;
+        move = `<p class="plan-move">${walk ? "🚶" : "🚗"} ${walk ? ht(`~${mins} min walk`, `~${mins} мин пешком`) : ht(`~${mins} min by car`, `~${mins} мин на машине`)}<span>·</span><a class="text-link" href="${url}" target="_blank" rel="noreferrer">${ht("Directions", "Маршрут")}</a></p>`;
+      }
+      const cat = CAT_LABEL[e.category] || ["Place", "Место"];
+      return `<li class="plan-stop"><div class="plan-rail"><b>${k + 1}</b>${nxt ? "<i></i>" : ""}</div><div class="plan-stop-body"><button class="plan-card detail-button" data-id="${e.id}"><span class="plan-card-copy"><small>${fmtTime(st.arrive)}</small><strong>${escapeHtml(shortName(e))}${c ? `<em>−${c.off}%</em>` : ""}</strong><span>${ht(cat[0], cat[1])} · ~${fmtDurL(st.duration)}</span></span>${img(e, "plan-card-img")}</button>${move}</div></li>`;
+    })
+    .join("");
+  const decisions = haiq.issuesOpen
+    ? `<div class="plan-issues">${issues.map((it, k) => `<div class="issue"><span class="issue-text">${escapeHtml(it.text)}</span><button class="text-link" data-issue="${k}">${it.cta}</button></div>`).join("") || `<p class="muted">${ht("Nothing to decide right now.", "Сейчас решать нечего.")}</p>`}</div>`
+    : "";
+  const bookings = [
+    ...new Map(
+      state.plan.flatMap((d) => dayPlan(d).services.map((e) => [e.id, { e, d }])),
+    ).values(),
+  ];
+  const saved = state.saved.map(getEntityById).filter(Boolean);
+  root.innerHTML = `
+    ${state.userBuilt ? "" : `<button class="plan-sample" data-wiz-start>✨ ${ht("This is Ara’s sample plan. Build your own →", "Это пример плана от Ары. Соберите свой →")}</button>`}
+    ${daySchemaSvg(tp, i)}
+    <div class="plan-sheet">
+      <div class="plan-title"><h1>${tripTitle}</h1><span>${range}</span><button class="text-link" data-wiz-start>${ht("Edit", "Изменить")}</button></div>
+      <div class="plan-days" role="tablist">${state.plan
+        .map(
+          (_, k) =>
+            `<button class="plan-day ${k === i ? "active" : ""}" role="tab" aria-selected="${k === i}" data-plan-day="${k}"><small>${dayLabel(k)}</small><b>${dayNumber(k)}</b>${dayWeather(k) ? `<em>${dayWeather(k)}</em>` : ""}</button>`,
+        )
+        .join("")}</div>
+      <h2 class="plan-day-title">${ht(`Day ${i + 1}`, `День ${i + 1}`)} · ${escapeHtml(ruDayTitle(day.title))}</h2>
+      <p class="plan-day-meta">${tp.stops.length} ${ht(tp.stops.length === 1 ? "place" : "places", tp.stops.length === 1 ? "место" : tp.stops.length < 5 && tp.stops.length > 1 ? "места" : "мест")} · ~${fmtDurL(tp.driveMinutes)} ${ht("on the way", "в пути")} · ${needsCar ? ht("car or tour needed", "нужна машина или тур") : ht("walk & taxi", "пешком и на такси")}</p>
+      ${tip ? `<div class="plan-ara"><img src="${araSrc()}" alt="" width="34" height="34"><p><b>${ht("Ara", "Ара")}:</b> ${escapeHtml(shortName(getEntityById(tip.id)))} — ${ht("fits your route", "по пути")} (${tip.badge})</p><button data-suggest="${tipIndex}" data-suggest-day="${i}">${ht("+ Add", "+ В план")}</button></div>` : ""}
+      <ol class="plan-stops">${stops || `<li class="muted">${ht("No places this day yet.", "На этот день пока нет мест.")}</li>`}</ol>
+      <button class="plan-add" data-explore-go="near">+ ${ht("Add a place", "Добавить место")}</button>
+      <div class="plan-bar">
+        <button class="plan-decide" data-plan-issues aria-expanded="${!!haiq.issuesOpen}"><b>${issues.length}</b>${ht("To decide", "Нужно решить")}</button>
+        <button class="plan-map" data-map-day="${i}">${ICON.pin}${ht("Map", "Карта")}</button>
+      </div>
+      ${decisions}
+      <details class="plan-more"><summary>${ht("Bookings & saved places", "Бронирования и сохранённое")} <span>${bookings.length + saved.length}</span></summary>
+        <div class="booking-list">${bookings
+          .map(
+            ({ e, d }) =>
+              `<div class="booking"><button class="booking-main detail-button" data-id="${e.id}"><strong>${escapeHtml(e.name)}</strong></button><button class="status-toggle" data-toggle-booked="${e.id}" aria-label="Toggle booked">${statusChip(bookingStatus(e, d))}</button></div>`,
+          )
+          .join("")}</div>
+        ${saved.length ? `<div class="saved-row">${saved.map((e) => `<div class="saved-item"><button class="detail-button" data-id="${e.id}">${img(e)}<span>${escapeHtml(e.name)}</span></button><button class="saved-remove" data-unsave="${e.id}" aria-label="Remove">${ICON.close}</button></div>`).join("")}</div>` : ""}
+      </details>
+      <div class="trip-foot"><button class="text-link muted" data-wiz-start>${ht("Start a new trip", "Начать новую поездку")}</button></div>
+    </div>`;
+  if (haiq.wallet.length) root.insertAdjacentHTML("beforeend", walletTemplate());
+}
+renderMyTrip = renderHaiqPlan;
+
+/* ---------- Build a trip: 4 short steps (dates → where → places → Ara builds) ---------- */
+const WIZ_PICKS = {
+  yerevan: ["republic-square", "cascade-complex", "matenadaran"],
+  daytrips: [
+    "garni-temple",
+    "geghard-monastery",
+    "khor-virap",
+    "noravank",
+    "sevanavank-lake-sevan",
+  ],
+  all: ["dilijan-national-park", "tatev-monastery"],
+};
+function wizPicks() {
+  const r = state.planner.region || "daytrips";
+  return [
+    ...WIZ_PICKS.yerevan,
+    ...(r !== "yerevan" ? WIZ_PICKS.daytrips : []),
+    ...(r === "all" ? WIZ_PICKS.all : []),
+  ].filter((id) => getEntityById(id));
+}
+// Answers from the first-launch questions seed the planner once.
+function seedPlannerFromPrefs() {
+  if (state.userBuilt || haiq.seeded) return;
+  haiq.seeded = true;
+  const prefs = readStored("haiq-prefs", null);
+  if (!prefs) return;
+  const group = { solo: "solo", couple: "couple", friends: "friends", family: "family" }[prefs.who];
+  if (group) state.planner.group = group;
+  const map = {
+    history: ["history"],
+    food: ["food", "wine"],
+    nature: ["nature"],
+    shows: ["nightlife"],
+    night: ["nightlife"],
+    shopping: [],
+  };
+  const ints = [...new Set((prefs.likes || []).flatMap((l) => map[l] || []))].filter(
+    (x) => interestToTags[x],
+  );
+  if (ints.length) state.planner.interests = ints;
+  const days = { "1-2": 2, "3-5": 5, week: 7, local: 3 }[prefs.days];
+  if (days) state.planner.days = days;
+}
+function renderWizard() {
+  const root = $("#plannerRoot");
+  if (!root) return;
+  seedPlannerFromPrefs();
+  const p = state.planner;
+  const step = haiq.wiz || 0;
+  const titles = [
+    [
+      ht("When are you in Armenia?", "Когда вы в Армении?"),
+      ht("We’ll show weather and what’s open on those days", "Покажем, что открыто в эти дни"),
+    ],
+    [
+      ht("Where do you want to go?", "Куда хотите поехать?"),
+      ht("You can change it any time", "Можно поменять в любой момент"),
+    ],
+    [
+      ht("Pick your places", "Выберите свои места"),
+      ht(
+        "Tick what you want to see. Ara fills the rest",
+        "Отметьте, что хотите увидеть. Остальное подскажет Ара",
+      ),
+    ],
+    [
+      ht("Build the plan day by day?", "Собрать план по дням?"),
+      ht(
+        "Ara weighs distances and opening hours. You can change everything",
+        "Ара учтёт расстояния и часы работы. Всё можно поменять",
+      ),
+    ],
+  ][step];
+  let body = "";
+  if (step === 0)
+    body = `<div class="wiz-card"><label class="wiz-label">${ht("Start date", "Дата начала")}<input type="date" class="date-input ${p.startDate ? "" : "is-empty"}" data-plan-date value="${p.startDate || ""}"></label><div class="wiz-days"><span>${ht("Days", "Дней")}</span><div class="stepper"><button data-plan-days="-1" aria-label="−">−</button><span><strong>${p.days}</strong></span><button data-plan-days="1" aria-label="+">+</button></div></div></div>`;
+  if (step === 1)
+    body = `<div class="onb-opts">${[
+      [
+        "yerevan",
+        "🏙",
+        ht("Yerevan only", "Только Ереван"),
+        ht("On foot: museums, food, evenings", "Пешком: музеи, еда, вечера"),
+      ],
+      [
+        "daytrips",
+        "🚐",
+        ht("Yerevan + day trips", "Ереван + поездки на день"),
+        ht(
+          "Garni, Khor Virap, Sevan — back to Yerevan at night",
+          "Гарни, Хор Вирап, Севан — с возвратом в Ереван",
+        ),
+      ],
+      [
+        "all",
+        "🏔",
+        ht("All of Armenia", "Вся Армения"),
+        ht("With overnights: Dilijan, Tatev", "С ночёвками: Дилижан, Татев"),
+      ],
+    ]
+      .map(
+        ([id, e, t, sub]) =>
+          `<button class="onb-opt wiz-opt ${(p.region || "daytrips") === id ? "on" : ""}" data-wiz-region="${id}"><span>${e}</span><span class="wiz-opt-copy"><b>${t}</b><small>${sub}</small></span><i></i></button>`,
+      )
+      .join("")}</div>`;
+  if (step === 2) {
+    const picks = wizPicks();
+    body = `<div class="wiz-places">${picks
+      .map((id) => {
+        const e = getEntityById(id);
+        const on = p.anchors.includes(id);
+        return `<button class="wiz-place ${on ? "on" : ""}" data-plan-anchor="${id}" aria-pressed="${on}">${img(e, "wiz-place-img")}<span class="wiz-place-copy"><b>${escapeHtml(shortName(e))}</b><small>${escapeHtml(e.region || "")}</small></span><i>${on ? "✓" : ""}</i></button>`;
+      })
+      .join(
+        "",
+      )}</div><button class="wiz-all" data-wiz-all>✓ ${ht("Select all", "Выбрать все")} · ${ht("selected", "выбрано")} ${picks.filter((id) => p.anchors.includes(id)).length}</button>`;
+  }
+  if (step === 3)
+    body = `<div class="wiz-card wiz-build"><img src="${araSrc()}" alt="" width="64" height="64"><p>${ht(`Ara will lay out ${p.anchors.length} chosen places over ${p.days} days`, `Ара разложит ${p.anchors.length} выбранных мест на ${p.days} ${p.days === 1 ? "день" : p.days < 5 ? "дня" : "дней"}`)}</p><button class="wiz-toggle ${p.fill === false ? "" : "on"}" data-wiz-fill aria-pressed="${p.fill !== false}"><span>${ht("Add more places to fill the days", "Добавить места, чтобы заполнить дни")}</span><i></i></button></div>`;
+  const cta =
+    step === 3
+      ? `<button class="tour-btn near-btn" data-plan-build>✨ ${ht("Ara, build my plan", "Ара, собери план")}</button>`
+      : `<button class="tour-btn near-btn" data-wiz-next>${ht("Next", "Дальше")}</button>`;
+  const secondary =
+    step === 0
+      ? `<button class="text-link" data-wiz-nodates>${ht("Not sure about dates yet", "Даты пока не знаю")}</button>`
+      : "";
+  root.innerHTML = `<div class="wiz"><div class="wiz-top"><button class="wiz-back" data-wiz-back aria-label="${ht("Back", "Назад")}">‹</button><div class="wiz-bar"><span style="width:${(step + 1) * 25}%"></span></div></div><p class="wiz-step">${ht(`Step ${step + 1} of 4 · Build a trip`, `Шаг ${step + 1} из 4 · Собрать поездку`)}</p><h1>${titles[0]}</h1><p class="welcome-lead">${titles[1]}</p>${body}<div class="wiz-cta">${cta}${secondary}</div></div>`;
+}
+
 renderToday = renderHaiqToday;
 renderDeals = renderHaiqDeals;
 const originalRenderAll = renderAll;
@@ -3757,6 +4068,10 @@ openScreen = function (id) {
 };
 const originalPlanner = renderPlanner;
 renderPlanner = function () {
+  if (state.plannerView !== "building") {
+    renderWizard();
+    return localizeHaiq();
+  }
   originalPlanner();
   localizeHaiq();
 };
@@ -3787,6 +4102,54 @@ document.addEventListener("click", (e) => {
     $("#chatLog").innerHTML = "";
     addMessage("assistant", araReply(""));
     return;
+  }
+  // My plan + Build a trip
+  if (b.dataset.planDay) {
+    haiq.planDay = Number(b.dataset.planDay);
+    haiq.issuesOpen = false;
+    renderMyTrip();
+    return localizeHaiq();
+  }
+  if (b.hasAttribute("data-plan-issues")) {
+    haiq.issuesOpen = !haiq.issuesOpen;
+    renderMyTrip();
+    return localizeHaiq();
+  }
+  if (b.hasAttribute("data-wiz-start")) {
+    haiq.wiz = 0;
+    state.plannerView = "form";
+    openScreen("plannerScreen");
+    return window.scrollTo({ top: 0 });
+  }
+  const wizGo = (step) => {
+    haiq.wiz = step;
+    renderPlanner();
+    window.scrollTo({ top: 0 });
+  };
+  if (b.hasAttribute("data-wiz-next")) return wizGo(Math.min(3, (haiq.wiz || 0) + 1));
+  if (b.hasAttribute("data-wiz-nodates")) {
+    state.planner.startDate = "";
+    return wizGo(1);
+  }
+  if (b.hasAttribute("data-wiz-back")) {
+    if (!haiq.wiz) return openScreen(state.plan.length ? "tripScreen" : "homeScreen");
+    return wizGo(haiq.wiz - 1);
+  }
+  if (b.dataset.wizRegion) {
+    state.planner.region = b.dataset.wizRegion;
+    const allowed = new Set(wizPicks());
+    state.planner.anchors = state.planner.anchors.filter((id) => allowed.has(id));
+    return renderPlanner();
+  }
+  if (b.hasAttribute("data-wiz-all")) {
+    const picks = wizPicks();
+    const all = picks.every((id) => state.planner.anchors.includes(id));
+    state.planner.anchors = all ? [] : picks;
+    return renderPlanner();
+  }
+  if (b.hasAttribute("data-wiz-fill")) {
+    state.planner.fill = state.planner.fill === false;
+    return renderPlanner();
   }
   if (b.dataset.dealStory) return showDealStory(b.dataset.dealStory);
   if (b.dataset.storyStep) {
