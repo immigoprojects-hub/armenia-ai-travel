@@ -3979,20 +3979,25 @@ function drawTripMap() {
       el.innerHTML = `<p class="plan-map-off">${ht("Map is unavailable offline", "Карта недоступна без интернета")}</p>`;
     });
 }
+const placeLabel = (e) => (haiq.lang === "ru" && ruWords[shortName(e)]) || shortName(e);
+function issueAction(it) {
+  if (/stay|hotel|жиль/i.test(it.text)) return ["🏨", ht("Find a stay", "Найти жильё")];
+  if (/driv|дорог/i.test(it.text)) return ["⏱", ht("Make it lighter", "Сделать легче")];
+  return ["🚗", ht("Find a driver", "Найти водителя")];
+}
 function planOverviewHtml() {
-  return `<div class="tp-route"><div class="tp-route-head"><b>${ht("Route", "Маршрут")}</b></div>${state.plan
+  return state.plan
     .map((d, k) => {
       const tp = dayPlan(d);
-      const names = tp.stops.map((st) =>
-        escapeHtml((haiq.lang === "ru" && ruWords[shortName(st.entity)]) || shortName(st.entity)),
-      );
+      const first = tp.stops[0]?.entity;
+      const names = tp.stops.map((st) => escapeHtml(placeLabel(st.entity)));
       const move =
         d.driveLevel === "none"
           ? `🚶 ${ht("on foot", "пешком")}`
-          : `🚗 ${ht("car or tour", "машина/тур")}`;
-      return `<button class="tp-day" data-plan-day="${k}"><span class="tp-day-head"><i style="background:${DAY_COLORS[k % DAY_COLORS.length]}"></i><b>${ht(`Day ${k + 1}`, `День ${k + 1}`)} · ${escapeHtml(ruDayTitle(d.title))}</b><small>${move}</small></span><span class="tp-day-list">${names.join('<span class="tp-arrow"> → </span>') || ht("Free day", "Свободный день")}</span></button>`;
+          : `🚗 ${ht("car or tour", "машина или тур")}`;
+      return `<button class="pp-day" data-plan-day="${k}"><span class="pp-day-photo">${first ? img(first, "", "hero") : ""}<em>${ht(`Day ${k + 1}`, `День ${k + 1}`)}${tripStart() ? ` · ${escapeHtml(planDateLabel(k))}` : ""}</em><b>${escapeHtml(ruDayTitle(d.title))}</b></span><span class="pp-day-list">${names.join(" → ") || ht("Free day", "Свободный день")}</span><span class="pp-chip">${move}</span></button>`;
     })
-    .join("")}</div>`;
+    .join("");
 }
 function renderHaiqPlan() {
   const root = $("#tripRoot");
@@ -4005,24 +4010,17 @@ function renderHaiqPlan() {
   const i = Math.min(haiq.planDay ?? currentDayIndex(), n - 1);
   const day = state.plan[i];
   const tp = dayPlan(day);
-  const sugg = routeSuggestions(i);
-  const tip = sugg.find((x) => x.kind === "add");
-  const allIssues = tripIssues();
-  const dayIssues = allIssues.map((it, k) => ({ ...it, k })).filter((it) => it.day === i);
-  const walkKm = tp.stops.reduce(
-    (sum, st, k) => (k ? sum + haversine(coords(tp.stops[k - 1].entity), coords(st.entity)) : sum),
-    0,
-  );
-  const region = state.planner.region || "daytrips";
   const overview = haiq.planTab !== "day";
+  const region = state.planner.region || "daytrips";
   const title = region === "yerevan" ? ht("Yerevan", "Ереван") : ht("Armenia", "Армения");
   const range = tripStart()
-    ? `${planDateLabel(0)} – ${planDateLabel(n - 1, true)}`
-    : ht(`${n} days`, `${n} дн.`);
-  const issueRow = (it) => {
-    const icon = /stay|hotel|жиль/i.test(it.text) ? "🏨" : /driv|дорог/i.test(it.text) ? "⏱" : "🚗";
-    return `<button class="wl-row" data-issue="${it.k}"><span class="wl-row-ico">${icon}</span><b>${escapeHtml(it.text)}</b><em>${escapeHtml(it.cta)}</em></button>`;
-  };
+    ? `${planDateLabel(0, true)} – ${planDateLabel(n - 1, true)}`
+    : ht("dates flexible", "даты гибкие");
+  const sugg = routeSuggestions(i);
+  const tip = sugg.find((x) => x.kind === "add");
+  const dayIssues = tripIssues()
+    .map((it, k) => ({ ...it, k }))
+    .filter((it) => it.day === i);
   const stops = tp.stops
     .map((st, k) => {
       const e = st.entity;
@@ -4036,37 +4034,33 @@ function renderHaiqPlan() {
         const walk = km < 2;
         const mins = walk ? Math.max(3, Math.round((km / 4.5) * 60)) : nxt.leg;
         const url = `https://www.google.com/maps/dir/?api=1&origin=${a.lat},${a.lng}&destination=${b.lat},${b.lng}&travelmode=${walk ? "walking" : "driving"}`;
-        move = `<p class="wl-move">${walk ? "🚶" : "🚗"} ${fmtDurL(mins)} · ${km.toFixed(1).replace(".", haiq.lang === "ru" ? "," : ".")} ${ht("km", "км")} · <a href="${url}" target="_blank" rel="noreferrer">${ht("Directions", "Маршрут")}</a></p>`;
+        move = `<a class="pp-move" href="${url}" target="_blank" rel="noreferrer">${walk ? "🚶" : "🚗"} ${fmtDurL(mins)} ${walk ? ht("on foot", "пешком") : ht("by car", "на машине")} · <u>${ht("Directions", "Маршрут")}</u></a>`;
       }
-      return `<li class="wl-stop"><button class="wl-place detail-button" data-id="${e.id}"><span class="wl-copy"><span class="wl-name"><i>${k + 1}</i>${escapeHtml(shortName(e))}</span><span class="wl-desc">${escapeHtml(entityDesc(e))}</span><span class="wl-chips"><em>${fmtTime(st.arrive)} · ${fmtDurL(st.duration)}</em>${c ? `<em class="wl-deal">−${c.off}% HAIQ</em>` : ""}</span></span>${img(e, "wl-img")}</button>${move}</li>`;
+      return `<li><button class="pp-stop detail-button" data-id="${e.id}"><span class="pp-stop-photo">${img(e, "", "hero")}<i>${k + 1}</i><em>${fmtTime(st.arrive)} · ${fmtDurL(st.duration)}</em>${c ? `<strong>−${c.off}% HAIQ</strong>` : ""}</span><b>${escapeHtml(placeLabel(e))}</b><small>${escapeHtml(entityDesc(e))}</small></button>${move}</li>`;
     })
     .join("");
   const saved = state.saved.map(getEntityById).filter(Boolean);
+  const body = overview
+    ? `<h1 class="pp-h1">${ht(`${title}: ${n} days`, `${title}: ${n} ${n === 1 ? "день" : n < 5 ? "дня" : "дней"}`)}</h1><p class="pp-sub">${escapeHtml(range)}</p>${planOverviewHtml()}`
+    : `<h1 class="pp-h1 pp-cap">${escapeHtml(tripStart() ? planDateLabel(i, true) : ht(`Day ${i + 1}`, `День ${i + 1}`))}</h1><p class="pp-sub">${escapeHtml(ruDayTitle(day.title))} · ${tp.stops.length} ${ht(tp.stops.length === 1 ? "place" : "places", tp.stops.length === 1 ? "место" : tp.stops.length < 5 && tp.stops.length > 1 ? "места" : "мест")}</p>
+      ${dayIssues
+        .map((it) => {
+          const [icon, label] = issueAction(it);
+          return `<div class="pp-need"><span>${icon}</span><b>${escapeHtml(it.text)}</b><button data-issue="${it.k}">${label}</button></div>`;
+        })
+        .join("")}
+      ${tip ? `<div class="pp-ara"><img src="${araSrc()}" alt="" width="44" height="44"><p><b>${ht("Ara", "Ара")}:</b> ${escapeHtml(placeLabel(getEntityById(tip.id)))} ${ht("is on your way", "по пути")}</p><button data-suggest="${sugg.indexOf(tip)}" data-suggest-day="${i}">${ht("Add", "Добавить")}</button></div>` : ""}
+      <ol class="pp-stops">${stops || `<li class="pp-sub">${ht("No places this day yet.", "На этот день пока нет мест.")}</li>`}</ol>`;
   root.innerHTML = `
-    <div class="wl-map-wrap">
-      <div id="planMap" class="wl-map"></div>
-      <div class="wl-map-top"><span></span><button class="wl-round" data-wiz-start aria-label="${ht("Edit trip", "Изменить поездку")}">✎</button></div>
+    <div class="pp-map-wrap"><div id="planMap" class="wl-map"></div><button class="pp-edit" data-wiz-start>✎ ${ht("Edit", "Изменить")}</button></div>
+    <div class="pp">
+      ${state.userBuilt ? "" : `<button class="pp-sample" data-wiz-start>✨ ${ht("This is a sample. Build your own →", "Это пример. Соберите свой →")}</button>`}
+      <div class="pp-pills"><button class="${overview ? "on" : ""}" data-plan-overview>${ht("All days", "Все дни")}</button>${state.plan.map((_, k) => `<button class="${!overview && k === i ? "on" : ""}" data-plan-day="${k}">${ht(`Day ${k + 1}`, `День ${k + 1}`)}</button>`).join("")}</div>
+      ${body}
+      ${saved.length ? `<h2 class="pp-h2">${ht("Saved for later", "Сохранено на потом")}</h2><div class="saved-row">${saved.map((e) => `<div class="saved-item"><button class="detail-button" data-id="${e.id}">${img(e)}<span>${escapeHtml(placeLabel(e))}</span></button><button class="saved-remove" data-unsave="${e.id}" aria-label="Remove">${ICON.close}</button></div>`).join("")}</div>` : ""}
+      <button class="bw-link pp-new" data-wiz-start>${ht("Start a new trip", "Начать новую поездку")}</button>
     </div>
-    <div class="wl-sheet">
-      <span class="wl-handle"></span>
-      ${state.userBuilt ? "" : `<button class="wl-sample" data-wiz-start>✨ ${ht("This is a sample plan — build your own", "Это пример плана — соберите свой")} →</button>`}
-      <h1 class="tp-title">${ht(`${n} days in ${title}`, `${title}: ${n} ${n === 1 ? "день" : n < 5 ? "дня" : "дней"}`)}</h1>
-      <p class="tp-meta">📅 ${escapeHtml(range)}${state.userBuilt ? ` · <span>✨ ${ht("planned with Ara", "собрал Ара")}</span>` : ""}</p>
-      <div class="tp-tabs"><button class="${overview ? "on" : ""}" data-plan-overview>${ht("Overview", "Обзор")}</button>${state.plan.map((_, k) => `<button class="${!overview && k === i ? "on" : ""}" data-plan-day="${k}">${ht(`Day ${k + 1}`, `День ${k + 1}`)}</button>`).join("")}</div>
-      ${
-        overview
-          ? planOverviewHtml()
-          : `<div class="wl-head"><h1>${escapeHtml(planDateLabel(i, true))}</h1><span>${tripStart() ? `${ht(`Day ${i + 1}`, `День ${i + 1}`)} · ` : ""}${escapeHtml(ruDayTitle(day.title))}</span></div>
-      <p class="wl-sub">${tp.stops.length} ${ht(tp.stops.length === 1 ? "place" : "places", tp.stops.length === 1 ? "место" : tp.stops.length < 5 && tp.stops.length > 1 ? "места" : "мест")}${day.driveLevel === "none" ? ` · ${walkKm.toFixed(1).replace(".", haiq.lang === "ru" ? "," : ".")} ${ht("km on foot", "км пешком")}` : ` · ${ht("by car or tour", "на машине или в туре")}`}</p>
-      ${dayIssues.length ? `<div class="wl-rows">${dayIssues.map(issueRow).join("")}</div>` : ""}
-      ${tip ? `<div class="wl-ara"><img src="${araSrc()}" alt="" width="34" height="34"><p><b>${ht("Ara", "Ара")}:</b> ${escapeHtml((haiq.lang === "ru" && ruWords[shortName(getEntityById(tip.id))]) || shortName(getEntityById(tip.id)))} ${ht("is on your way", "по пути")} (${tip.badge.replace("~", "").replace("min", ht("min", "мин"))})</p><button data-suggest="${sugg.indexOf(tip)}" data-suggest-day="${i}">＋</button></div>` : ""}
-      <ol class="wl-stops">${stops || `<li class="muted">${ht("No places this day yet.", "На этот день пока нет мест.")}</li>`}</ol>
-      <button class="wl-add" data-catalog-open>📍 ${ht("Add a place", "Добавить место")}</button>`
-      }
-      ${saved.length ? `<h3 class="wl-h3">${ht("Saved for later", "Сохранено на потом")}</h3><div class="saved-row">${saved.map((e) => `<div class="saved-item"><button class="detail-button" data-id="${e.id}">${img(e)}<span>${escapeHtml(shortName(e))}</span></button><button class="saved-remove" data-unsave="${e.id}" aria-label="Remove">${ICON.close}</button></div>`).join("")}</div>` : ""}
-      <div class="trip-foot"><button class="text-link muted" data-wiz-start>${ht("Start a new trip", "Начать новую поездку")}</button></div>
-    </div>
-    <div class="wl-fabs"><button class="wl-fab light" data-open-concierge aria-label="${ht("Ask Ara", "Спросить Ару")}">✨</button><button class="wl-fab" data-catalog-open aria-label="${ht("Add a place", "Добавить место")}">＋</button></div>`;
+    <div class="pp-cta-wrap"><button class="bw-cta" data-catalog-open>＋ ${ht("Add a place", "Добавить место")}</button><button class="bw-link" data-open-concierge>✨ ${ht("Ara, help me", "Ара, помоги")}</button></div>`;
   if (haiq.wallet.length) root.insertAdjacentHTML("beforeend", walletTemplate());
   if (overview) drawTripMap();
   else drawPlanMap(tp);
