@@ -85,5 +85,5 @@ html.native-app body {
 
 /* Premium plan / trip builder: status-bar backdrop matches the dark screens. */
 html.native-app.wiz-mode body::before {
-  background: #16100f;
+  background: #fff;
 }
