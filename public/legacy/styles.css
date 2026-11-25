@@ -3968,10 +3968,10 @@ main {
   margin-bottom: 12px;
 }
 
-/* bottom nav: 4 tabs */
+/* bottom nav: 5 tabs */
 .bottom-nav {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   align-items: stretch;
   overflow: visible;
   background: color-mix(in srgb, var(--ivory) 88%, transparent);
