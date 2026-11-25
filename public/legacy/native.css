@@ -82,3 +82,8 @@ html.native-app body {
   overflow-x: hidden;
   touch-action: pan-y;
 }
+
+/* Premium plan / trip builder: status-bar backdrop matches the dark screens. */
+html.native-app.wiz-mode body::before {
+  background: #fff;
+}

@@ -1247,7 +1247,14 @@ function buildPlan(shouldSave = true) {
   const inputs = getPlannerInputs();
   state.lastInputs = inputs;
   const usedIds = new Set();
-  const clusters = orderedClusters(inputs);
+  const region = state.planner.region || "daytrips";
+  const clusters = orderedClusters(inputs).filter((c) =>
+    region === "yerevan"
+      ? c.driveLevel === "none"
+      : region === "daytrips"
+        ? c.driveLevel !== "long"
+        : true,
+  );
   const selectedClusters = [];
   // Longer trips than there are distinct routes get open days instead of a repeated day.
   while (selectedClusters.length < inputs.days)
@@ -1287,6 +1294,12 @@ function buildPlan(shouldSave = true) {
     day.estimatedCost = estimateDailyCost(day, inputs);
     return day;
   });
+  if (state.planner.fill === false) {
+    const keep = new Set(state.planner.anchors);
+    state.plan.forEach((day) => {
+      day.stops = day.stops.filter((id) => keep.has(id) || !isGeo(getEntityById(id)));
+    });
+  }
   if (shouldSave) saveGeneratedTrip();
   else persistTrip();
 }
@@ -2679,9 +2692,13 @@ document.addEventListener("click", (event) => {
     if (isSaved(id)) state.saved = state.saved.filter((x) => x !== id);
     else state.saved.push(id);
     persistSaved();
+    if ($("#entityDialog").open) $("#entityDialog").close();
     renderAll();
-    openEntityDetail(id);
-    return showToast(isSaved(id) ? "Saved to My Trip" : "Removed from saved");
+    return showToast(
+      isSaved(id)
+        ? ht("Saved for later · My plan", "Сохранено на потом · Мой план")
+        : ht("Removed from saved", "Убрано из сохранённого"),
+    );
   }
   const unsave = q("[data-unsave]");
   if (unsave) {
@@ -2795,8 +2812,11 @@ document.addEventListener("click", (event) => {
       buildPlan(true);
       state.plannerView = "result";
       state.expandedDays = new Set([0]);
+      haiq.planDay = 0;
+      haiq.wiz = 0;
       renderAll();
-      showToast("Your Armenia trip is ready");
+      openScreen("tripScreen");
+      showToast(ht("Your Armenia trip is ready", "Ваша поездка готова"));
     }, 900);
     return;
   }
@@ -2960,7 +2980,7 @@ const WEATHER_CODES = [
 async function loadWeather() {
   try {
     const res = await fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=40.1792&longitude=44.4991&current=temperature_2m,weather_code&timezone=Asia%2FYerevan",
+      "https://api.open-meteo.com/v1/forecast?latitude=40.1792&longitude=44.4991&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max&forecast_days=16&timezone=Asia%2FYerevan",
       { signal: AbortSignal.timeout(8000) },
     );
     if (!res.ok) return;
@@ -2968,6 +2988,15 @@ async function loadWeather() {
     const c = data && data.current;
     if (!c || typeof c.temperature_2m !== "number") return;
     haiq.weather = { temp: c.temperature_2m, code: c.weather_code };
+    const dl = data.daily;
+    if (dl && Array.isArray(dl.time)) {
+      haiq.daily = {};
+      dl.time.forEach((t, k) => {
+        if (typeof dl.temperature_2m_max?.[k] === "number")
+          haiq.daily[t] = { temp: dl.temperature_2m_max[k], code: dl.weather_code?.[k] };
+      });
+      if ($("#tripScreen")?.classList.contains("active")) renderMyTrip();
+    }
     if ($("#t2Weather")) $("#t2Weather").textContent = weatherShort();
   } catch {
     /* keep the neutral greeting */
@@ -3732,15 +3761,555 @@ function localizeHaiq() {
     "ИИ-гид · цены и часы работы лучше уточнять",
   );
 }
-const originalTripRender = renderMyTrip;
-renderMyTrip = function () {
-  originalTripRender();
-  $("#tripRoot").insertAdjacentHTML(
-    "afterbegin",
-    `<div class="trip-switch"><button data-screen-target="mapScreen" data-map-whole>${ICON.pin}${ht("Map", "Карта")}</button><button data-screen-target="plannerScreen">${ICON.spark || ""}${ht("Edit plan", "Изменить план")}</button></div>`,
-  );
-  if (haiq.wallet.length) $("#tripRoot").insertAdjacentHTML("beforeend", walletTemplate());
+/* ---------- My plan (redesign): day schema on top, one day at a time, Ara's tip, decisions ---------- */
+const ruDayTitle = (title) => {
+  const t = cleanTitle(title);
+  return haiq.lang === "ru" ? ruWords[t] || t : t;
 };
+const CAT_LABEL = {
+  attractions: ["Sight", "Место"],
+  "restaurants-cafes": ["Food", "Еда"],
+  hotels: ["Stay", "Жильё"],
+  tours: ["Tour", "Тур"],
+};
+// Forecast for a trip day: only when that date is inside Open-Meteo's 16-day forecast.
+function dayWeather(i) {
+  if (!tripStart() || !haiq.daily) return "";
+  const date = new Date(tripStart());
+  date.setUTCDate(date.getUTCDate() + i);
+  const w = haiq.daily[date.toISOString().slice(0, 10)];
+  if (!w) return "";
+  const icon = (WEATHER_CODES.find(([codes]) => codes.includes(w.code)) || [0, "🌡"])[1];
+  return `${icon} ${Math.round(w.temp)}°`;
+}
+const fmtDurL = (m) =>
+  haiq.lang === "ru"
+    ? fmtDur(m)
+        .replace(/(\d+) min/, "$1 мин")
+        .replace(/(\d+)h/, "$1 ч")
+        .replace(/(\d+)m$/, "$1 мин")
+    : fmtDur(m);
+function dayLabel(i) {
+  if (tripPhase() === "live" && i === currentDayIndex()) return ht("Today", "Сегодня");
+  if (!tripStart()) return ht("Day", "День");
+  const start = tripStart();
+  const date = new Date(start);
+  date.setUTCDate(date.getUTCDate() + i);
+  return date.toLocaleDateString(haiq.lang === "ru" ? "ru-RU" : "en-GB", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+}
+function dayNumber(i) {
+  if (!tripStart()) return i + 1;
+  const date = new Date(tripStart());
+  date.setUTCDate(date.getUTCDate() + i);
+  return date.getUTCDate();
+}
+function couponForEntity(id) {
+  return coupons.find((c) => c.entity === id && c.category !== "experiences");
+}
+function planHeroChips(n) {
+  const chips = [];
+  if (tripStart()) {
+    const loc = haiq.lang === "ru" ? "ru-RU" : "en-GB";
+    const a = new Date(tripStart());
+    const z = new Date(tripStart());
+    z.setUTCDate(z.getUTCDate() + n - 1);
+    const sameMonth = a.getUTCMonth() === z.getUTCMonth();
+    const end = z.toLocaleDateString(loc, { day: "numeric", month: "long", timeZone: "UTC" });
+    chips.push(
+      sameMonth
+        ? `${a.getUTCDate()} – ${end}`
+        : `${a.toLocaleDateString(loc, { day: "numeric", month: "short", timeZone: "UTC" })} – ${end}`,
+    );
+  } else chips.push(ht("Dates flexible", "Даты гибкие"));
+  chips.push(
+    ht(`${n} ${n === 1 ? "day" : "days"}`, `${n} ${n === 1 ? "день" : n < 5 ? "дня" : "дней"}`),
+  );
+  const w = dayWeather(Math.min(haiq.planDay ?? 0, n - 1));
+  if (w) chips.push(w);
+  return chips.map((c) => `<span>${escapeHtml(c)}</span>`).join("");
+}
+// Short Russian descriptions of our own places (same facts as the English text in entities.js).
+const RU_DESC = {
+  "cascade-complex":
+    "Огромная лестница под открытым небом, современное искусство и вид на город. Рядом кафе и центр Гафесчяна.",
+  "republic-square": "Главная площадь из розового туфа: музеи, фонтаны, вечерние прогулки.",
+  matenadaran: "Музей и институт древних рукописей — одно из главных мест Еревана.",
+  "garni-temple": "Знаменитый античный храм, обычно вместе с Гегардом и «Симфонией камней».",
+  "geghard-monastery": "Монастырь ЮНЕСКО, частично высеченный в скале, в живописном ущелье.",
+  "khor-virap": "Известный монастырь у турецкой границы с классическим видом на Арарат.",
+  noravank: "Монастырь в каньоне красных скал, часто вместе с винодельнями Арени и Хор Вирапом.",
+  "sevanavank-lake-sevan": "Высокогорное озеро, монастырь Севанаванк и рыбные рестораны рядом.",
+  "dilijan-national-park":
+    "Лесные тропы, монастыри, свежий воздух — один из лучших выездов на природу.",
+  "tatev-monastery":
+    "Большой монастырь на юге, туда ведёт горная дорога или канатная дорога «Крылья Татева».",
+  "lavash-restaurant": "Известный армянский ресторан: классические блюда и выпечка лаваша.",
+  "sherep-restaurant": "Армянский ресторан у площади Республики, открытая кухня, понятное меню.",
+  dolmama: "Давно работающий ресторан изысканной армянской кухни, фирменная долма.",
+  "tavern-yerevan": "Сеть традиционных армянских ресторанов в центре, большое местное меню.",
+  "in-vino": "Небольшой винный бар на улице Сарьяна: армянские и зарубежные вина.",
+  "mirzoyan-library": "Кафе, фотобиблиотека и дворик с творческой атмосферой.",
+  "gouroo-club-garden": "Популярное кафе-ресторан: бранчи, сад, международная кухня.",
+  "crumbs-bread-factory": "Пекарня-кафе: завтраки, хлеб, выпечка, кофе.",
+};
+Object.assign(ruWords, {
+  Sherep: "Шереп",
+  Lavash: "Лаваш",
+  Dolmama: "Долмама",
+  "Tavern Yerevan": "Таверна Ереван",
+  "In Vino": "Ин Вино",
+  Garni: "Гарни",
+  Geghard: "Гегард",
+  "Khor Virap": "Хор Вирап",
+  Noravank: "Нораванк",
+  "Lake Sevan + Sevanavank": "Севан и Севанаванк",
+  Dilijan: "Дилижан",
+  Tatev: "Татев",
+  Matenadaran: "Матенадаран",
+  "Mirzoyan Library": "Библиотека Мирзояна",
+  "Gouroo Club & Garden": "Гуру Клаб и сад",
+  "Crumbs Bread Factory": "Крамбс",
+});
+const entityDesc = (e) => (haiq.lang === "ru" ? RU_DESC[e.id] : null) || e.shortDescription || "";
+function planDateLabel(i, long) {
+  if (!tripStart()) return ht(`Day ${i + 1}`, `День ${i + 1}`);
+  const d = new Date(tripStart());
+  d.setUTCDate(d.getUTCDate() + i);
+  return d.toLocaleDateString(
+    haiq.lang === "ru" ? "ru-RU" : "en-GB",
+    long
+      ? { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }
+      : { weekday: "short", day: "numeric", timeZone: "UTC" },
+  );
+}
+function drawPlanMap(tp) {
+  const el = $("#planMap");
+  if (!el) return;
+  loadLeaflet()
+    .then(() => {
+      if (!document.body.contains(el)) return;
+      haiq.planMap?.remove();
+      const pts = tp.stops.map((s) => coords(s.entity)).filter(Boolean);
+      const map = L.map(el, {
+        zoomControl: false,
+        attributionControl: true,
+        dragging: true,
+        scrollWheelZoom: false,
+      });
+      haiq.planMap = map;
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap",
+      }).addTo(map);
+      if (!pts.length) return map.setView([BASE.lat, BASE.lng], 12);
+      L.polyline(
+        pts.map((p) => [p.lat, p.lng]),
+        { color: "#6e1b2d", weight: 3, dashArray: "2 8", lineCap: "round" },
+      ).addTo(map);
+      pts.forEach((p, k) =>
+        L.marker([p.lat, p.lng], {
+          icon: L.divIcon({
+            html: `<b>${k + 1}</b>`,
+            className: "plan-pin",
+            iconSize: [30, 36],
+            iconAnchor: [15, 34],
+          }),
+        }).addTo(map),
+      );
+      map.fitBounds(
+        pts.map((p) => [p.lat, p.lng]),
+        { padding: [40, 40], maxZoom: 15 },
+      );
+    })
+    .catch(() => {
+      el.innerHTML = `<p class="plan-map-off">${ht("Map is unavailable offline", "Карта недоступна без интернета")}</p>`;
+    });
+}
+const DAY_COLORS = ["#6E1B2D", "#B45309", "#1F4E79", "#3F7A55", "#7C5CBF", "#0E7490", "#9D174D"];
+function drawTripMap() {
+  const el = $("#planMap");
+  if (!el) return;
+  loadLeaflet()
+    .then(() => {
+      if (!document.body.contains(el)) return;
+      haiq.planMap?.remove();
+      const map = L.map(el, { zoomControl: false, scrollWheelZoom: false });
+      haiq.planMap = map;
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap",
+      }).addTo(map);
+      const all = [];
+      const labeled = [];
+      state.plan.forEach((d, k) => {
+        const pts = dayPlan(d)
+          .stops.map((st) => coords(st.entity))
+          .filter(Boolean);
+        if (!pts.length) return;
+        const color = DAY_COLORS[k % DAY_COLORS.length];
+        L.polyline(
+          pts.map((p) => [p.lat, p.lng]),
+          { color, weight: 3, dashArray: "2 8", lineCap: "round" },
+        ).addTo(map);
+        pts.forEach((p, j) => {
+          const m = L.marker([p.lat, p.lng], {
+            icon: L.divIcon({
+              html: `<b style="background:${color}"></b>`,
+              className: "plan-dot",
+              iconSize: [18, 18],
+              iconAnchor: [9, 9],
+            }),
+          }).addTo(map);
+          const crowded = labeled.some((q) => haversine(q, p) < 30);
+          if (j === 0 && !crowded && labeled.push(p))
+            m.bindTooltip(
+              `${ht(`Day ${k + 1}`, `День ${k + 1}`)} · ${escapeHtml(ruDayTitle(d.title))}`,
+              { permanent: true, direction: "top", offset: [0, -8], className: "plan-flag" },
+            );
+          all.push([p.lat, p.lng]);
+        });
+      });
+      if (all.length) map.fitBounds(all, { padding: [50, 40], maxZoom: 12 });
+      else map.setView([BASE.lat, BASE.lng], 9);
+    })
+    .catch(() => {
+      el.innerHTML = `<p class="plan-map-off">${ht("Map is unavailable offline", "Карта недоступна без интернета")}</p>`;
+    });
+}
+const placeLabel = (e) => (haiq.lang === "ru" && ruWords[shortName(e)]) || shortName(e);
+function issueAction(it) {
+  if (/stay|hotel|жиль/i.test(it.text)) return ["🏨", ht("Find a stay", "Найти жильё")];
+  if (/driv|дорог/i.test(it.text)) return ["⏱", ht("Make it lighter", "Сделать легче")];
+  return ["🚗", ht("Find a driver", "Найти водителя")];
+}
+function planOverviewHtml() {
+  return state.plan
+    .map((d, k) => {
+      const tp = dayPlan(d);
+      const first = tp.stops[0]?.entity;
+      const names = tp.stops.map((st) => escapeHtml(placeLabel(st.entity)));
+      const move =
+        d.driveLevel === "none"
+          ? `🚶 ${ht("on foot", "пешком")}`
+          : `🚗 ${ht("car or tour", "машина или тур")}`;
+      return `<button class="pp-day" data-plan-day="${k}"><span class="pp-day-photo">${first ? img(first, "", "hero") : ""}<em>${ht(`Day ${k + 1}`, `День ${k + 1}`)}${tripStart() ? ` · ${escapeHtml(planDateLabel(k))}` : ""}</em><b>${escapeHtml(ruDayTitle(d.title))}</b></span><span class="pp-day-list">${names.join(" → ") || ht("Free day", "Свободный день")}</span><span class="pp-chip">${move}</span></button>`;
+    })
+    .join("");
+}
+function renderHaiqPlan() {
+  const root = $("#tripRoot");
+  if (!root) return;
+  if (!state.plan.length) {
+    root.innerHTML = `<div class="plan-empty"><h1 class="display-sm">${ht("No trip yet", "Поездки пока нет")}</h1><p>${ht("Pick dates and places — Ara will lay them out by day.", "Выберите даты и места — Ара разложит их по дням.")}</p><button class="lux-cta" data-wiz-start>${ht("Build my trip", "Собрать поездку")}</button></div>`;
+    return;
+  }
+  const n = state.plan.length;
+  const i = Math.min(haiq.planDay ?? currentDayIndex(), n - 1);
+  const day = state.plan[i];
+  const tp = dayPlan(day);
+  const overview = haiq.planTab !== "day";
+  const region = state.planner.region || "daytrips";
+  const title = region === "yerevan" ? ht("Yerevan", "Ереван") : ht("Armenia", "Армения");
+  const range = tripStart()
+    ? `${planDateLabel(0, true)} – ${planDateLabel(n - 1, true)}`
+    : ht("dates flexible", "даты гибкие");
+  const sugg = routeSuggestions(i);
+  const tip = sugg.find((x) => x.kind === "add");
+  const dayIssues = tripIssues()
+    .map((it, k) => ({ ...it, k }))
+    .filter((it) => it.day === i);
+  const stops = tp.stops
+    .map((st, k) => {
+      const e = st.entity;
+      const nxt = tp.stops[k + 1];
+      const c = couponForEntity(e.id);
+      let move = "";
+      if (nxt) {
+        const a = coords(e),
+          b = coords(nxt.entity);
+        const km = haversine(a, b);
+        const walk = km < 2;
+        const mins = walk ? Math.max(3, Math.round((km / 4.5) * 60)) : nxt.leg;
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${a.lat},${a.lng}&destination=${b.lat},${b.lng}&travelmode=${walk ? "walking" : "driving"}`;
+        move = `<a class="pp-move" href="${url}" target="_blank" rel="noreferrer">${walk ? "🚶" : "🚗"} ${fmtDurL(mins)} ${walk ? ht("on foot", "пешком") : ht("by car", "на машине")} · <u>${ht("Directions", "Маршрут")}</u></a>`;
+      }
+      return `<li><button class="pp-stop detail-button" data-id="${e.id}"><span class="pp-stop-photo">${img(e, "", "hero")}<i>${k + 1}</i><em>${fmtTime(st.arrive)} · ${fmtDurL(st.duration)}</em>${c ? `<strong>−${c.off}% HAIQ</strong>` : ""}</span><b>${escapeHtml(placeLabel(e))}</b><small>${escapeHtml(entityDesc(e))}</small></button>${move}</li>`;
+    })
+    .join("");
+  const saved = state.saved.map(getEntityById).filter(Boolean);
+  const body = overview
+    ? `<h1 class="pp-h1">${ht(`${title}: ${n} days`, `${title}: ${n} ${n === 1 ? "день" : n < 5 ? "дня" : "дней"}`)}</h1><p class="pp-sub">${escapeHtml(range)}</p>${planOverviewHtml()}`
+    : `<h1 class="pp-h1 pp-cap">${escapeHtml(tripStart() ? planDateLabel(i, true) : ht(`Day ${i + 1}`, `День ${i + 1}`))}</h1><p class="pp-sub">${escapeHtml(ruDayTitle(day.title))} · ${tp.stops.length} ${ht(tp.stops.length === 1 ? "place" : "places", tp.stops.length === 1 ? "место" : tp.stops.length < 5 && tp.stops.length > 1 ? "места" : "мест")}</p>
+      ${dayIssues
+        .map((it) => {
+          const [icon, label] = issueAction(it);
+          return `<div class="pp-need"><span>${icon}</span><b>${escapeHtml(it.text)}</b><button data-issue="${it.k}">${label}</button></div>`;
+        })
+        .join("")}
+      ${tip ? `<div class="pp-ara"><img src="${araSrc()}" alt="" width="44" height="44"><p><b>${ht("Ara", "Ара")}:</b> ${escapeHtml(placeLabel(getEntityById(tip.id)))} ${ht("is on your way", "по пути")}</p><button data-suggest="${sugg.indexOf(tip)}" data-suggest-day="${i}">${ht("Add", "Добавить")}</button></div>` : ""}
+      <ol class="pp-stops">${stops || `<li class="pp-sub">${ht("No places this day yet.", "На этот день пока нет мест.")}</li>`}</ol>`;
+  root.innerHTML = `
+    <div class="pp-map-wrap"><div id="planMap" class="wl-map"></div><button class="pp-edit" data-wiz-start>✎ ${ht("Edit", "Изменить")}</button></div>
+    <div class="pp">
+      ${state.userBuilt ? "" : `<button class="pp-sample" data-wiz-start>✨ ${ht("This is a sample. Build your own →", "Это пример. Соберите свой →")}</button>`}
+      <div class="pp-pills"><button class="${overview ? "on" : ""}" data-plan-overview>${ht("All days", "Все дни")}</button>${state.plan.map((_, k) => `<button class="${!overview && k === i ? "on" : ""}" data-plan-day="${k}">${ht(`Day ${k + 1}`, `День ${k + 1}`)}</button>`).join("")}</div>
+      ${body}
+      ${saved.length ? `<h2 class="pp-h2">${ht("Saved for later", "Сохранено на потом")}</h2><div class="saved-row">${saved.map((e) => `<div class="saved-item"><button class="detail-button" data-id="${e.id}">${img(e)}<span>${escapeHtml(placeLabel(e))}</span></button><button class="saved-remove" data-unsave="${e.id}" aria-label="Remove">${ICON.close}</button></div>`).join("")}</div>` : ""}
+      <button class="bw-link pp-new" data-wiz-start>${ht("Start a new trip", "Начать новую поездку")}</button>
+    </div>
+    <div class="pp-cta-wrap"><button class="bw-cta" data-catalog-open>＋ ${ht("Add a place", "Добавить место")}</button><button class="bw-link" data-open-concierge>✨ ${ht("Ara, help me", "Ара, помоги")}</button></div>`;
+  if (haiq.wallet.length) root.insertAdjacentHTML("beforeend", walletTemplate());
+  if (overview) drawTripMap();
+  else drawPlanMap(tp);
+}
+// Place card: "+ Add to plan" opens a day picker (like Wanderlog), instead of a silent "Save".
+function planPickSheet(id) {
+  const e = getEntityById(id);
+  if (!e || !state.plan.length) return "";
+  const colors = ["#6E1B2D", "#B45309", "#1F4E79", "#3F7A55", "#7C5CBF", "#0E7490", "#9D174D"];
+  return `<div class="pick-sheet" role="dialog" aria-label="${ht("Add to plan", "Добавить в план")}"><div class="pick-card"><div class="pick-head"><button class="text-link" data-pick-close>${ht("Cancel", "Отмена")}</button><b>${ht("Add", "Добавить")} «${escapeHtml((haiq.lang === "ru" && ruWords[shortName(e)]) || shortName(e))}»</b><span></span></div><p class="pick-label">${ht("Which day", "В какой день")}</p>${state.plan
+    .map((d, k) => {
+      const has = d.stops.includes(id);
+      return `<button class="pick-day" ${has ? "disabled" : `data-pick-day="${k}" data-pick-id="${id}"`}><i style="background:${colors[k % colors.length]}"></i><span><b>${escapeHtml(planDateLabel(k, true))}</b><small>${ht(`Day ${k + 1}`, `День ${k + 1}`)} · ${escapeHtml(ruDayTitle(d.title))}</small></span>${has ? `<em>✓ ${ht("already there", "уже в этом дне")}</em>` : ""}</button>`;
+    })
+    .join(
+      "",
+    )}<p class="pick-label">${ht("Or", "Или")}</p><button class="pick-day" data-save="${id}"><i class="pick-save">🔖</i><span><b class="no-cap">${isSaved(id) ? ht("Remove from saved", "Убрать из сохранённого") : ht("Save for later", "Сохранить на потом")}</b></span></button></div></div>`;
+}
+renderMyTrip = renderHaiqPlan;
+
+/* ---------- Build a trip: 4 short steps (dates → where → places → Ara builds) ---------- */
+// Answers from the first-launch questions seed the planner once.
+function seedPlannerFromPrefs() {
+  if (state.userBuilt || haiq.seeded) return;
+  haiq.seeded = true;
+  const prefs = readStored("haiq-prefs", null);
+  if (!prefs) return;
+  const group = { solo: "solo", couple: "couple", friends: "friends", family: "family" }[prefs.who];
+  if (group) state.planner.group = group;
+  const map = {
+    history: ["history"],
+    food: ["food", "wine"],
+    nature: ["nature"],
+    shows: ["nightlife"],
+    night: ["nightlife"],
+    shopping: [],
+  };
+  const ints = [...new Set((prefs.likes || []).flatMap((l) => map[l] || []))].filter(
+    (x) => interestToTags[x],
+  );
+  if (ints.length) state.planner.interests = ints;
+  const days = { "1-2": 2, "3-5": 5, week: 7, local: 3 }[prefs.days];
+  if (days) state.planner.days = days;
+}
+function wizCalendar(p) {
+  const loc = haiq.lang === "ru" ? "ru-RU" : "en-GB";
+  const today = armeniaToday();
+  const base =
+    haiq.calMonth || (p.startDate ? p.startDate.slice(0, 7) : today.toISOString().slice(0, 7));
+  const [y, m] = base.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const daysIn = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const lead = (first.getUTCDay() + 6) % 7;
+  const start = p.startDate ? Date.parse(p.startDate + "T00:00:00Z") : null;
+  const end = start != null ? start + (p.days - 1) * 86400000 : null;
+  const cells = [];
+  for (let k = 0; k < lead; k++) cells.push("<span></span>");
+  for (let d = 1; d <= daysIn; d++) {
+    const t = Date.UTC(y, m - 1, d);
+    const iso = new Date(t).toISOString().slice(0, 10);
+    const past = t < today.getTime();
+    const inR = start != null && t >= start && t <= end;
+    const cls = [
+      inR ? "in" : "",
+      t === start ? "s" : "",
+      t === end ? "e" : "",
+      past ? "past" : "",
+    ].join(" ");
+    cells.push(
+      `<button class="${cls}" ${past ? "disabled" : `data-cal-day="${iso}"`}>${d}</button>`,
+    );
+  }
+  const wd =
+    haiq.lang === "ru"
+      ? ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
+      : ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+  const title = `${first.toLocaleDateString(loc, { month: "long", timeZone: "UTC" })} ${y}`;
+  let picked = "";
+  if (start != null) {
+    const f = (t, o) => new Date(t).toLocaleDateString(loc, { ...o, timeZone: "UTC" });
+    picked = `<div class="lux-picked"><div><small>${ht("You picked", "Вы выбрали")}</small><b>${f(start, { day: "numeric", month: "short" })} – ${f(end, { day: "numeric", month: "long" })} · ${p.days} ${ht(p.days === 1 ? "day" : "days", p.days === 1 ? "день" : p.days < 5 ? "дня" : "дней")}</b></div><span>${ht("Tap a date to change", "Нажмите дату, чтобы изменить")}</span></div>`;
+  }
+  return `<div class="lux-cal"><div class="lux-cal-head"><b>${title}</b><span><button data-cal-nav="-1" aria-label="‹">‹</button><button data-cal-nav="1" aria-label="›">›</button></span></div><div class="lux-cal-wd">${wd.map((w) => `<span>${w}</span>`).join("")}</div><div class="lux-cal-grid">${cells.join("")}</div></div>${picked || `<p class="lux-hint">${ht("Tap the first day, then the last (up to 7 days)", "Нажмите первый день, потом последний (до 7 дней)")}</p>`}`;
+}
+// Photo tiles for "What do you want to see?": a place id, or an interest (food, wine).
+const PICK_TILES = [
+  { id: "khor-virap", t: ["Ararat & Khor Virap", "Арарат и Хор Вирап"] },
+  { id: "geghard-monastery", t: ["Monastery in the rock", "Монастырь в скале"] },
+  { id: "garni-temple", t: ["Garni temple", "Храм Гарни"] },
+  { id: "cascade-complex", t: ["Cascade & city views", "Каскад и вид на город"] },
+  { id: "republic-square", t: ["Republic Square", "Площадь Республики"] },
+  { id: "matenadaran", t: ["Ancient manuscripts", "Древние рукописи"] },
+  { id: "noravank", t: ["Noravank in the mountains", "Нораванк в горах"] },
+  { id: "sevanavank-lake-sevan", t: ["Lake Sevan", "Озеро Севан"] },
+  { id: "dilijan-national-park", t: ["Dilijan forests", "Леса Дилижана"] },
+  { id: "tatev-monastery", t: ["Tatev & the cable car", "Татев и канатная дорога"] },
+  {
+    interest: "food",
+    photo: "lavash-restaurant",
+    src: "/assets/lavash.jpg",
+    t: ["Armenian food", "Армянская еда"],
+  },
+  { interest: "wine", photo: "in-vino", t: ["Armenian wine", "Армянское вино"] },
+];
+const YEREVAN_IDS = new Set(["cascade-complex", "republic-square", "matenadaran"]);
+function pickCount(p) {
+  return (
+    p.anchors.length +
+    PICK_TILES.filter((x) => x.interest && p.interests.includes(x.interest)).length
+  );
+}
+function renderWizard() {
+  const root = $("#plannerRoot");
+  if (!root) return;
+  if (haiq.catalogOpen) return renderCatalog();
+  seedPlannerFromPrefs();
+  const p = state.planner;
+  const step = Math.min(haiq.wiz || 0, 1);
+  let body = "";
+  let cta = "";
+  if (step === 0) {
+    body = `<h1>${ht("When are you in Armenia?", "Когда вы в Армении?")}</h1><p class="bw-sub">${ht("Tap the first day, then the last", "Нажмите первый день, потом последний")}</p>${wizCalendar(p)}`;
+    cta = `<button class="bw-cta" data-wiz-next>${ht("Next", "Дальше")}</button><button class="bw-link" data-wiz-nodates>${ht("Not sure about dates yet", "Даты пока не знаю")}</button>`;
+  } else {
+    body = `<h1>${ht("What do you want to see?", "Что хотите увидеть?")}</h1><p class="bw-sub">${ht("Tap the photos you like 👆", "Нажмите на фото, что нравится 👆")}</p><div class="bw-grid">${PICK_TILES.map(
+      (x) => {
+        const e = getEntityById(x.id || x.photo);
+        if (!e) return "";
+        const on = x.id ? p.anchors.includes(x.id) : p.interests.includes(x.interest);
+        const attr = x.id ? `data-plan-anchor="${x.id}"` : `data-wiz-int="${x.interest}"`;
+        return `<button class="bw-tile ${on ? "on" : ""}" ${attr} aria-pressed="${on}"><span class="bw-photo">${x.src ? `<img src="${x.src}" alt="" loading="lazy">` : img(e, "", "hero")}<i>${on ? "✓" : ""}</i></span><b>${ht(x.t[0], x.t[1])}</b></button>`;
+      },
+    ).join("")}</div>`;
+    const n = pickCount(p);
+    cta = `<button class="bw-cta" data-plan-build>${ht("Done", "Готово")}${n ? ` <em>${n}</em>` : ""}</button><button class="bw-link" data-wiz-ara>✨ ${ht("Not sure — Ara, pick for me", "Не знаю — Ара, выбери за меня")}</button>`;
+  }
+  root.innerHTML = `<div class="bw"><div class="bw-top"><button class="bw-back" data-wiz-back aria-label="${ht("Back", "Назад")}">‹</button><div class="bw-steps">${[0, 1, 2].map((k) => `<span class="${k <= step ? "on" : ""}"></span>`).join("")}</div></div>${body}<div class="bw-cta-wrap">${cta}</div></div>`;
+}
+// Before the main "build" handler runs: Ara fills the days, and the region follows the picked places.
+document.addEventListener("input", (e) => {
+  if (!e.target.matches("[data-catalog-q]")) return;
+  haiq.catalogQ = e.target.value;
+  const pos = e.target.selectionStart;
+  renderCatalog();
+  localizeHaiq();
+  const inp = $("[data-catalog-q]");
+  inp.focus();
+  inp.setSelectionRange(pos, pos);
+});
+document.addEventListener(
+  "click",
+  (e) => {
+    if (!e.target.closest("[data-plan-build]")) return;
+    const a = state.planner.anchors;
+    state.planner.fill = true;
+    state.planner.region = a.some(
+      (id) => id === "tatev-monastery" || id === "dilijan-national-park",
+    )
+      ? "all"
+      : a.length && a.every((id) => YEREVAN_IDS.has(id))
+        ? "yerevan"
+        : "daytrips";
+  },
+  true,
+);
+/* ---------- Catalog: "What to see" (like Mindtrip) ---------- */
+function catalogCard(e) {
+  const inDay = state.plan.findIndex((d) => d.stops.includes(e.id));
+  const c = couponForEntity(e.id);
+  const from = coords(e);
+  const near = from && haversine(BASE, from) < 6;
+  const drive =
+    from && !near
+      ? `🚗 ≈ ${fmtDurL(legMinutes(BASE, from))}`
+      : `🚶 ${ht("in the centre", "центр")}`;
+  const btn =
+    inDay >= 0
+      ? `<span class="ct-in">✓ ${ht(`Day ${inDay + 1}`, `День ${inDay + 1}`)}</span>`
+      : `<span class="ct-add">＋ ${ht("Add", "В план")}</span>`;
+  return `<div class="ct-card"><button class="ct-photo" data-pick-open="${e.id}" aria-label="${ht("Add to plan", "В план")}">${img(e, "", "hero")}${btn}${c ? `<em class="ct-deal">−${c.off}% HAIQ</em>` : ""}</button><button class="ct-copy detail-button" data-id="${e.id}"><b>${escapeHtml((haiq.lang === "ru" && ruWords[shortName(e)]) || shortName(e))}</b><small>${drive}${e.estimatedPrice === "Free" ? ` · ${ht("free", "бесплатно")}` : ""}</small></button></div>`;
+}
+function renderCatalog() {
+  const root = $("#plannerRoot");
+  const qy = (haiq.catalogQ || "").toLowerCase();
+  const tab = haiq.catalogTab || "all";
+  const match = (e) =>
+    !qy ||
+    `${e.name} ${shortName(e)} ${ruWords[shortName(e)] || ""} ${entityDesc(e)} ${e.cityRegion}`
+      .toLowerCase()
+      .includes(qy);
+  const list = (ids) => ids.map(getEntityById).filter((e) => e && match(e));
+  const sights = list([
+    "khor-virap",
+    "geghard-monastery",
+    "garni-temple",
+    "noravank",
+    "sevanavank-lake-sevan",
+    "dilijan-national-park",
+    "tatev-monastery",
+  ]);
+  const city = list(["cascade-complex", "republic-square", "matenadaran"]);
+  const food = list([
+    "lavash-restaurant",
+    "dolmama",
+    "sherep-restaurant",
+    "tavern-yerevan",
+    "in-vino",
+    "mirzoyan-library",
+    "gouroo-club-garden",
+    "crumbs-bread-factory",
+  ]);
+  const row = (title, items) =>
+    items.length
+      ? `<h2 class="ct-h">${title}</h2><div class="ct-row">${items.map(catalogCard).join("")}</div>`
+      : "";
+  const sections =
+    (tab === "all" || tab === "places"
+      ? row(ht("Must-see outside Yerevan", "Главное за городом"), sights) +
+        row(ht("Yerevan on foot", "Ереван пешком"), city)
+      : "") + (tab === "all" || tab === "food" ? row(ht("Food & wine", "Еда и вино"), food) : "");
+  const count = new Set(state.plan.flatMap((d) => d.stops.filter((id) => isGeo(getEntityById(id)))))
+    .size;
+  root.innerHTML = `<div class="bw ct"><div class="bw-top"><button class="bw-back" data-catalog-close aria-label="${ht("Back", "Назад")}">‹</button><b class="ct-title">${ht("What to see", "Что посмотреть")}</b></div>
+    <label class="ct-search">🔍<input type="search" data-catalog-q value="${escapeHtml(haiq.catalogQ || "")}" placeholder="${ht("Monasteries, wine, Sevan…", "Монастыри, вино, Севан…")}"></label>
+    <h1 class="ct-country">${ht("Armenia", "Армения")}</h1>
+    <div class="ct-tabs">${[
+      ["all", ht("For you", "Для вас")],
+      ["places", ht("Places", "Места")],
+      ["food", ht("Food", "Еда")],
+    ]
+      .map(
+        ([k, t]) =>
+          `<button class="${tab === k ? "on" : ""}" data-catalog-tab="${k}">${t}</button>`,
+      )
+      .join("")}</div>
+    ${sections || `<p class="bw-sub">${ht("Nothing found.", "Ничего не нашлось.")}</p>`}
+    ${state.plan.length ? `<div class="ct-bar"><span>${ht("In plan", "В плане")} <b>${count}</b> ${ht("places", "мест")} · ${state.plan.length} ${ht("days", "дн.")}</span><button data-catalog-close>${ht("Open plan", "Открыть план")}</button></div>` : ""}</div>`;
+}
+// Full-screen modes: the wizard and the plan hero hide the app header.
+function syncLuxMode() {
+  const active = $(".screen.active")?.id;
+  const wiz = active === "plannerScreen" && (state.plannerView !== "building" || haiq.catalogOpen);
+  document.documentElement.classList.toggle("wiz-mode", wiz);
+  document.documentElement.classList.toggle(
+    "hero-mode",
+    active === "tripScreen" && state.plan.length > 0,
+  );
+}
+
 renderToday = renderHaiqToday;
 renderDeals = renderHaiqDeals;
 const originalRenderAll = renderAll;
@@ -3754,9 +4323,15 @@ openScreen = function (id) {
   if (id === "exploreScreen" || id === "toursScreen") renderExploreScreen();
   if (id === "exploreScreen") autoLocate();
   localizeHaiq();
+  syncLuxMode();
 };
 const originalPlanner = renderPlanner;
 renderPlanner = function () {
+  if (state.plannerView !== "building") {
+    renderWizard();
+    localizeHaiq();
+    return syncLuxMode();
+  }
   originalPlanner();
   localizeHaiq();
 };
@@ -3768,13 +4343,49 @@ renderMap = function (fit = false) {
 const originalDetail = openEntityDetail;
 openEntityDetail = function (id) {
   originalDetail(id);
+  const ent = getEntityById(id);
+  const actions = $("#entityDetail .detail-actions");
+  if (
+    ent &&
+    actions &&
+    state.plan.length &&
+    ["attractions", "restaurants-cafes"].includes(ent.category)
+  ) {
+    actions.querySelector("[data-add-to-day]")?.remove();
+    const inPlanDay = state.plan.findIndex((d) => d.stops.includes(id));
+    actions.insertAdjacentHTML(
+      "afterbegin",
+      inPlanDay >= 0
+        ? `<button class="btn-primary plan-add-btn" data-pick-open="${id}">✓ ${ht(`In plan · Day ${inPlanDay + 1}`, `В плане · день ${inPlanDay + 1}`)}</button>`
+        : `<button class="btn-primary plan-add-btn" data-pick-open="${id}">＋ ${ht("Add to plan", "В план")}</button>`,
+    );
+    actions.querySelector("[data-save]")?.remove();
+  }
   if (haiq.lang === "ru") {
     const walker = document.createTreeWalker($("#entityDetail"), NodeFilter.SHOW_TEXT);
     let n;
     while ((n = walker.nextNode())) {
       const k = n.textContent.trim();
       if (ruWords[k]) n.textContent = n.textContent.replace(k, ruWords[k]);
+      else {
+        const t = k
+          .replace(/^Day (\d+) · stop (\d+) of (\d+)$/, "День $1 · место $2 из $3")
+          .replace(/^Arrive (\S+) · (.+) here$/, "Прибытие $1 · $2 на месте")
+          .replace(/^(\d+) min from (.+)$/, (m, a, b) => `${a} мин от ${ruWords[b] || b}`)
+          .replace(/^Attraction · (.+)$/i, "Место · $1")
+          .replace(/^Restaurant · (.+)$/i, "Ресторан · $1")
+          .replace(/^Free$/, "Бесплатно")
+          .replace(/^(\d+)h$/, "$1 ч")
+          .replace(/^(\d+)h (\d+)m$/, "$1 ч $2 мин")
+          .replace(/^(\d+) min$/, "$1 мин")
+          .replace(/\b(\d+)h (\d+)m\b/g, "$1 ч $2 мин")
+          .replace(/\b(\d+)h\b/g, "$1 ч")
+          .replace(/Yerevan/g, "Ереван");
+        if (t !== k) n.textContent = n.textContent.replace(k, t);
+      }
     }
+    const why = $("#entityDetail .detail-why");
+    if (why && RU_DESC[id]) why.textContent = RU_DESC[id];
   }
 };
 document.addEventListener("click", (e) => {
@@ -3787,6 +4398,143 @@ document.addEventListener("click", (e) => {
     $("#chatLog").innerHTML = "";
     addMessage("assistant", araReply(""));
     return;
+  }
+  // Place card → day picker
+  if (b.dataset.pickOpen) {
+    document.querySelectorAll(".pick-sheet").forEach((x) => x.remove());
+    if (!state.plan.length) return openEntityDetail(b.dataset.pickOpen);
+    const host = $("#entityDialog").open ? $("#entityDialog") : document.body;
+    host.insertAdjacentHTML("beforeend", planPickSheet(b.dataset.pickOpen));
+    return localizeHaiq();
+  }
+  if (b.hasAttribute("data-pick-close"))
+    return document.querySelectorAll(".pick-sheet").forEach((x) => x.remove());
+  if (b.dataset.pickDay) {
+    const k = Number(b.dataset.pickDay);
+    const id = b.dataset.pickId;
+    const ent = getEntityById(id);
+    const day = state.plan[k];
+    if (!ent || !day) return;
+    const pos = coords(ent) ? insertionFor(ent, day).pos : dayPlan(day).stops.length;
+    day.stops = previewIds(day, { kind: "add", id, pos });
+    day.estimatedCost = estimateDailyCost(day, currentInputs());
+    state.saved = state.saved.filter((x) => x !== id);
+    persistSaved();
+    persistTrip();
+    document.querySelectorAll(".pick-sheet").forEach((x) => x.remove());
+    if ($("#entityDialog").open) $("#entityDialog").close();
+    if (haiq.catalogOpen) {
+      renderCatalog();
+      localizeHaiq();
+      return showToast(ht(`Added to Day ${k + 1}`, `Добавлено в день ${k + 1}`));
+    }
+    haiq.planDay = k;
+    haiq.planTab = "day";
+    renderAll();
+    openScreen("tripScreen");
+    window.scrollTo({ top: 0 });
+    return showToast(ht(`Added to Day ${k + 1}`, `Добавлено в день ${k + 1}`));
+  }
+  // My plan + Build a trip
+  if (b.hasAttribute("data-plan-overview")) {
+    haiq.planTab = "overview";
+    renderMyTrip();
+    return localizeHaiq();
+  }
+  if (b.dataset.planDay) {
+    haiq.planDay = Number(b.dataset.planDay);
+    haiq.planTab = "day";
+    haiq.issuesOpen = false;
+    renderMyTrip();
+    return localizeHaiq();
+  }
+  if (b.dataset.planTab) {
+    haiq.issuesOpen = false;
+    renderMyTrip();
+    return localizeHaiq();
+  }
+  if (b.dataset.calNav) {
+    const base =
+      haiq.calMonth || (state.planner.startDate || armeniaToday().toISOString()).slice(0, 7);
+    const [y, m] = base.split("-").map(Number);
+    const d = new Date(Date.UTC(y, m - 1 + Number(b.dataset.calNav), 1));
+    haiq.calMonth = d.toISOString().slice(0, 7);
+    return renderPlanner();
+  }
+  if (b.dataset.calDay) {
+    const t = Date.parse(b.dataset.calDay + "T00:00:00Z");
+    const s0 = state.planner.startDate ? Date.parse(state.planner.startDate + "T00:00:00Z") : null;
+    if (haiq.calPending && s0 != null && t >= s0) {
+      state.planner.days = Math.min(7, Math.round((t - s0) / 86400000) + 1);
+      haiq.calPending = false;
+    } else {
+      state.planner.startDate = b.dataset.calDay;
+      state.planner.days = 1;
+      haiq.calPending = true;
+    }
+    return renderPlanner();
+  }
+  if (b.hasAttribute("data-plan-issues")) {
+    haiq.issuesOpen = !haiq.issuesOpen;
+    renderMyTrip();
+    localizeHaiq();
+    if (haiq.issuesOpen) $(".lux-issues")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  if (b.hasAttribute("data-wiz-start")) {
+    haiq.wiz = 0;
+    haiq.catalogOpen = false;
+    state.plannerView = "form";
+    openScreen("plannerScreen");
+    renderPlanner();
+    return window.scrollTo({ top: 0 });
+  }
+  const wizGo = (step) => {
+    haiq.wiz = step;
+    renderPlanner();
+    window.scrollTo({ top: 0 });
+  };
+  if (b.hasAttribute("data-wiz-next")) return wizGo(Math.min(1, (haiq.wiz || 0) + 1));
+  if (b.dataset.wizInt) {
+    const i = b.dataset.wizInt;
+    const list = state.planner.interests;
+    state.planner.interests = list.includes(i) ? list.filter((x) => x !== i) : [...list, i];
+    return renderPlanner();
+  }
+  if (b.hasAttribute("data-wiz-ara")) {
+    if (!state.planner.anchors.length)
+      state.planner.anchors = [
+        "republic-square",
+        "cascade-complex",
+        "garni-temple",
+        "geghard-monastery",
+        "khor-virap",
+      ];
+    return $(".bw-cta[data-plan-build]")?.click();
+  }
+  if (b.hasAttribute("data-catalog-open")) {
+    haiq.catalogOpen = true;
+    state.plannerView = "form";
+    openScreen("plannerScreen");
+    renderPlanner();
+    return window.scrollTo({ top: 0 });
+  }
+  if (b.hasAttribute("data-catalog-close")) {
+    haiq.catalogOpen = false;
+    return openScreen(state.plan.length ? "tripScreen" : "homeScreen");
+  }
+  if (b.dataset.catalogTab) {
+    haiq.catalogTab = b.dataset.catalogTab;
+    renderCatalog();
+    return localizeHaiq();
+  }
+  if (b.hasAttribute("data-wiz-nodates")) {
+    state.planner.startDate = "";
+    return wizGo(1);
+  }
+  if (b.hasAttribute("data-wiz-back")) {
+    if (!haiq.wiz) return openScreen(state.plan.length ? "tripScreen" : "homeScreen");
+    return wizGo(haiq.wiz - 1);
   }
   if (b.dataset.dealStory) return showDealStory(b.dataset.dealStory);
   if (b.dataset.storyStep) {
